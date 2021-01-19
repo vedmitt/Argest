@@ -1,5 +1,0 @@
-<RCC>
-    <qresource prefix="/plugins/bpla_plugin_flights" >
-        <file>icon.png</file>
-    </qresource>
-</RCC>
