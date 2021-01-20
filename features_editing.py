@@ -32,12 +32,39 @@ from qgis.utils import iface
 from qgis.PyQt.QtGui import (
     QColor,
 )
-
+from qgis.PyQt.QtCore import QVariant
 import os
 os.environ['GDAL_DATA'] = 'C:\Program Files\QGIS 3.10\share\gdal'
 os.environ['PROJ_LIB'] = 'C:\Program Files\QGIS 3.10\share\proj'
 
-def modifyFeatures(layer):
+def addRemoveFields(layer):
+    caps = layer.dataProvider().capabilities()
+
+    # if caps & QgsVectorDataProvider.AddAttributes:
+    #     res = layer.dataProvider().addAttributes(
+    #         [QgsField("newField", QVariant.String), # adding NULL every time :(
+    #          QgsField("myint", QVariant.Int)])
+
+    if caps & QgsVectorDataProvider.DeleteAttributes:
+        res = layer.dataProvider().deleteAttributes([2])
+
+    # # Alternate methods for removing fields
+    # # first create temporary fields to be removed (f1-3)
+    # layer.dataProvider().addAttributes(
+    #     [QgsField("f1", QVariant.Int), QgsField("f2", QVariant.Int), QgsField("f3", QVariant.Int)])
+    # layer.updateFields()
+    # count = layer.fields().count()  # count of layer fields
+    # ind_list = list((count - 3, count - 2))  # create list
+    #
+    # # remove a single field with an index
+    # layer.dataProvider().deleteAttributes([count - 1])
+    #
+    # # remove multiple fields with a list of indices
+    # layer.dataProvider().deleteAttributes(ind_list)
+
+    layer.updateFields() # compulsory!
+
+def addFeatures(layer):
     caps = layer.dataProvider().capabilities()
     # # Check if a particular capability is supported:
     # if caps & QgsVectorDataProvider.DeleteFeatures:
@@ -65,6 +92,55 @@ def modifyFeatures(layer):
         feat.setAttribute('value', random.uniform(0.1, 1.9))
         feat.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(123, 456)))
         (res, outFeats) = layer.dataProvider().addFeatures([feat])
+
+def modifyFeatures(layer):
+    caps = layer.dataProvider().capabilities()
+    fid = 10  # ID of the feature we will modify
+    # The following example first changes values of attributes with index 0 and 1, then it changes the feature’s geometry.
+    if caps & QgsVectorDataProvider.ChangeAttributeValues:
+        attrs = {0: "hello", 1: 123}
+        layer.dataProvider().changeAttributeValues({fid: attrs})
+
+    if caps & QgsVectorDataProvider.ChangeGeometries:
+        geom = QgsGeometry.fromPointXY(QgsPointXY(111, 222))
+        layer.dataProvider().changeGeometryValues({fid: geom})
+
+def modifyLayersEditingBuffer(layer): # not working?
+    # layer.beginEditCommand("Feature triangulation")
+    feat1 = feat2 = QgsFeature(layer.fields())
+    fid = 9
+    feat1.setId(fid)
+
+    # add two features (QgsFeature instances)
+    layer.addFeatures([feat1, feat2])
+    # delete a feature with specified ID
+    layer.deleteFeature(fid)
+
+    # set new geometry (QgsGeometry instance) for a feature
+    geometry = QgsGeometry.fromWkt("POINT(7 45)")
+    layer.changeGeometry(fid, geometry)
+    # update an attribute with given field index (int) to a given value
+    fieldIndex = 2
+    value = 'My new name'
+    layer.changeAttributeValue(fid, fieldIndex, value)
+
+    # add new field
+    layer.addAttribute(QgsField("mytext", QVariant.String))
+    # remove a field
+    layer.deleteAttribute(fieldIndex)
+
+    # if problem_occurred:
+    #     layer.destroyEditCommand()
+    #     # ... tell the user that there was a problem
+    #     # and return
+
+    # ... more editing ...
+    # layer.endEditCommand()
+
+    with edit(layer):
+        feat = next(layer.getFeatures())
+        feat[0] = 5
+        layer.updateFeature(feat)
 
 def deleteFeatures(layer):
     caps = layer.dataProvider().capabilities()
@@ -155,6 +231,16 @@ def iterFeatures(layer):
         # for this test only print the first feature
         # break
 
+def vectorLayerUtilsMethods(layer):
+    # The QgsVectorLayerUtils class contains some very useful methods that you can use with vector layers.
+    # For example the createFeature() method prepares a QgsFeature to be added to a vector layer keeping
+    # all the eventual constraints and default values of each field:
+
+    feat = QgsVectorLayerUtils.createFeature(layer)
+    # select only the first feature to make the output shorter
+    vlayer.selectByIds([1])
+    val = QgsVectorLayerUtils.getValues(vlayer, "NAME", selectedOnly=True)
+    print('\n', val)
 
 if __name__ == "__main__":
     # vlayer = QgsVectorLayer(r'M:\YandexDisk\QGIS\osgeopy\osgeopy-data\global\ne_50m_populated_places.shp', 'capital_cities', 'ogr')
@@ -165,9 +251,13 @@ if __name__ == "__main__":
     # print(vlayer.displayField())
 
     # requestFeature(vlayer)
+    # addFeatures(vlayer)
     # modifyFeatures(vlayer)
+    # modifyLayersEditingBuffer(vlayer)
     # deleteFeatures(vlayer)
-    iterFeatures(vlayer)
+    # addRemoveFields(vlayer)
+    # iterFeatures(vlayer)
+    # vectorLayerUtilsMethods(vlayer)
     # selectFeatures(vlayer)
     pass
 
