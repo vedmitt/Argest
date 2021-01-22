@@ -2,16 +2,16 @@ import datetime
 
 from numpy import random
 from qgis.core import (
-  QgsPointXY,
-  QgsExpression,
-  QgsField,
-  QgsFeature,
-  QgsFeatureRequest,
-  QgsGeometry,
-  QgsVectorDataProvider,
-  QgsVectorLayer,
-  QgsWkbTypes,
-  QgsVectorLayerUtils
+    QgsPointXY,
+    QgsExpression,
+    QgsField,
+    QgsFeature,
+    QgsFeatureRequest,
+    QgsGeometry,
+    QgsVectorDataProvider,
+    QgsVectorLayer,
+    QgsWkbTypes,
+    QgsVectorLayerUtils
 )
 from qgis.core.additions.edit import edit
 from qgis.utils import iface
@@ -20,12 +20,14 @@ from qgis.PyQt.QtGui import (
 )
 from qgis.PyQt.QtCore import QVariant
 import os
+
 os.environ['GDAL_DATA'] = 'C:\Program Files\QGIS 3.10\share\gdal'
 os.environ['PROJ_LIB'] = 'C:\Program Files\QGIS 3.10\share\proj'
 
 import layer_to_file as broker
 
-def removeZeroFeatures(layer):   #save new file without zero features
+
+def removeZeroFeatures(layer):  # save new file without zero features
     with edit(layer):
         # build a request to filter the features based on an attribute
         request = QgsFeatureRequest().setFilterExpression('"LON" = 0.0 and "LAT" = 0.0')
@@ -46,28 +48,43 @@ def removeZeroFeatures(layer):   #save new file without zero features
     # for feature in layer.getFeatures(request):
     #     print(feature.id(), feature['T'], feature['TIME'], feature['LON'], feature['LAT'], feature['ALT'])
 
-def parsingTime(layer):
+
+def extractTime(layer):
     # removeZeroFeatures(layer) # delete all zero points first!
 
-    # request = QgsFeatureRequest()
-    # request.setLimit(10)
-    # for feature in layer.getFeatures(request):
-    #     print(feature['TIME'])
-    #     break
+    request = QgsFeatureRequest()
+    request.setLimit(11)
+    layerFeatures = layer.getFeatures(request)
+    # i = 0
+    for f1 in layerFeatures:
+        if f1.id() % 2 == 0:
+            first_feat = f1
+        else:
+            second_feat = f1
+            # parsingTime(first_feat['TIME'], second_feat['TIME'])
+            print(first_feat['TIME'])
+            print(second_feat['TIME'])
+            print('\n')
+            # i += 1
 
-    # date_time_str = 'Jun 28 2018 7:40AM'
-    date_time_str = '05-09-2020T05:53:06,50000'
-    # date_time_obj = datetime.datetime.strptime(date_time_str, '%b %d %Y %I:%M%p')
-    date_time_obj = datetime.datetime.strptime(date_time_str, '%m-%d-%YT%H:%M:%S,%f')
 
-    print('Date:', date_time_obj.date())
-    print('Time:', date_time_obj.time())
-    print('Date-time:', date_time_obj)
+def parsingTime(dt_str_1, dt_str_2):
+    data_format = '%m-%d-%YT%H:%M:%S,%f'
+
+    dt_obj_1 = datetime.datetime.strptime(dt_str_1, data_format)
+    dt_obj_2 = datetime.datetime.strptime(dt_str_2, data_format)
+
+    print('Date:', dt_obj_1.date())
+    print('Time:', dt_obj_1.time())
+
+    print('Date:', dt_obj_2.date())
+    print('Time:', dt_obj_2.time())
+
 
 
 ######--------------------- example code ----------------------------
 
-def addRemoveFields(layer):  #test
+def addRemoveFields(layer):  # test
     caps = layer.dataProvider().capabilities()
 
     # if caps & QgsVectorDataProvider.AddAttributes:
@@ -93,6 +110,7 @@ def addRemoveFields(layer):  #test
     # layer.dataProvider().deleteAttributes(ind_list)
 
     layer.updateFields()  # compulsory!
+
 
 def addFeatures(layer):
     caps = layer.dataProvider().capabilities()
@@ -123,6 +141,7 @@ def addFeatures(layer):
         feat.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(123, 456)))
         (res, outFeats) = layer.dataProvider().addFeatures([feat])
 
+
 def modifyFeatures(layer):
     caps = layer.dataProvider().capabilities()
     fid = 10  # ID of the feature we will modify
@@ -135,7 +154,8 @@ def modifyFeatures(layer):
         geom = QgsGeometry.fromPointXY(QgsPointXY(111, 222))
         layer.dataProvider().changeGeometryValues({fid: geom})
 
-def modifyLayersEditingBuffer(layer): # not working?
+
+def modifyLayersEditingBuffer(layer):  # not working?
     # layer.beginEditCommand("Feature triangulation")
     feat1 = feat2 = QgsFeature(layer.fields())
     fid = 9
@@ -172,10 +192,12 @@ def modifyLayersEditingBuffer(layer): # not working?
         feat[0] = 5
         layer.updateFeature(feat)
 
+
 def deleteFeatures(layer):
     caps = layer.dataProvider().capabilities()
     if caps & QgsVectorDataProvider.DeleteFeatures:
         res = layer.dataProvider().deleteFeatures([10, 12])
+
 
 def requestFeature(layer):
     # areaOfInterest = QgsRectangle(450290, 400520, 450750, 400780)
@@ -193,6 +215,7 @@ def requestFeature(layer):
     request.setLimit(2)
     for feature in layer.getFeatures(request):
         print(feature, feature['name'])
+
 
 def selectFeatures(layer):
     # Get the active layer (must be a vector layer)
@@ -215,6 +238,7 @@ def selectFeatures(layer):
         # do whatever you need with the feature
         print(feature['name'], feature['id'])
         pass
+
 
 def iterFeatures(layer):
     # "layer" is a QgsVectorLayer instance
@@ -261,6 +285,7 @@ def iterFeatures(layer):
         # for this test only print the first feature
         # break
 
+
 def vectorLayerUtilsMethods(layer):
     # The QgsVectorLayerUtils class contains some very useful methods that you can use with vector layers.
     # For example the createFeature() method prepares a QgsFeature to be added to a vector layer keeping
@@ -271,6 +296,7 @@ def vectorLayerUtilsMethods(layer):
     vlayer.selectByIds([1])
     val = QgsVectorLayerUtils.getValues(vlayer, "NAME", selectedOnly=True)
     print('\n', val)
+
 
 # def printAttributes(fn): #working on home PC
 #     import ospybook as pb
@@ -284,12 +310,11 @@ if __name__ == "__main__":
 
     # for field in vlayer.fields():
     #     print(field.name(), field.typeName())
-        ## or
+    ## or
     # print(vlayer.displayField())
 
-    parsingTime(vlayer)
+    extractTime(vlayer)
     # removeZeroFeatures(vlayer)
     # iterFeatures(vlayer)
 
     pass
-
