@@ -24,8 +24,6 @@ import os
 os.environ['GDAL_DATA'] = 'C:\Program Files\QGIS 3.10\share\gdal'
 os.environ['PROJ_LIB'] = 'C:\Program Files\QGIS 3.10\share\proj'
 
-import layer_to_file as broker
-
 
 def removeZeroFeatures(layer):  # save new file without zero features
     with edit(layer):
@@ -41,6 +39,8 @@ def removeZeroFeatures(layer):  # save new file without zero features
         for f in layer.getFeatures(request):
             layer.deleteFeature(f.id())
 
+    return layer
+
     # layer.updateFields()  # compulsory!
 
     # request = QgsFeatureRequest()
@@ -54,18 +54,27 @@ def extractTime(layer):
 
     request = QgsFeatureRequest()
     request.setLimit(11)
-    layerFeatures = layer.getFeatures(request)
+    mylayer = layer.getFeatures(request)
+
+    # feat = mylayer.getFeatures(0)
+    # print(feat)
+
     # i = 0
-    for f1 in layerFeatures:
-        if f1.id() % 2 == 0:
-            first_feat = f1
-        else:
-            second_feat = f1
-            # parsingTime(first_feat['TIME'], second_feat['TIME'])
-            print(first_feat['TIME'])
-            print(second_feat['TIME'])
-            print('\n')
-            # i += 1
+    for feat in mylayer:
+        print(feat['TIME'])
+        break
+
+        return feat('TIME')
+
+        # if feat.id() % 2 == 0:
+        #     prev = feat
+        # else:
+        #     next = feat
+        #     # parsingTime(first_feat['TIME'], second_feat['TIME'])
+        #     print(prev['TIME'])
+        #     print(next['TIME'])
+        #     print('\n')
+        #     # i += 1
 
 
 def parsingTime(dt_str_1, dt_str_2):
@@ -318,3 +327,4 @@ if __name__ == "__main__":
     # iterFeatures(vlayer)
 
     pass
+

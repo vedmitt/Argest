@@ -21,18 +21,19 @@
  *                                                                         *
  ***************************************************************************/
 """
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
+from qgis.PyQt.QtCore import QSettings, QTranslator
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 
 # Initialize Qt resources from file resources.py
-from .resources import *
 # Import the code for the dialog
+from qgis.core import QgsVectorFileWriter, QgsProject
+
 from .bpla_plugin_flights_dialog import bpla_plugin_flightsDialog
 import os.path
-from qgis.core import *
 from qgis.utils import *
 
+from .features_editing import *
 
 class bpla_plugin_flights:
     """QGIS Plugin Implementation."""
@@ -181,6 +182,40 @@ class bpla_plugin_flights:
                 action)
             self.iface.removeToolBarIcon(action)
 
+    def layerToCsv(self):
+        # write the attribute table of a layer to a csv file
+        with open(self.filename, 'w') as f:
+            fields = [field.name() for field in self.layer.fields()]
+            row = ','.join(fields) + '\n'
+            f.write(row)
+            for feature in self.layer.getFeatures():
+                row = ','.join(str(feature[field]) for field in fields) + '\n'
+                f.write(row)
+
+    def layerToShapefile(self):
+        # Write to an ESRI Shapefile format dataset using UTF-8 text encoding
+        save_options = QgsVectorFileWriter.SaveVectorOptions()
+        save_options.driverName = "ESRI Shapefile"
+        save_options.fileEncoding = "UTF-8"
+        transform_context = QgsProject.instance().transformContext()
+
+        error = QgsVectorFileWriter.writeAsVectorFormat(self.layer, self.filename,
+                                                        "CP1250", self.layer.crs(),
+                                                        "ESRI Shapefile")
+
+        if error[0] == QgsVectorFileWriter.NoError:
+            return "Successfully saved!"
+        else:
+            return 'Something went wrong... '+error
+
+    def getLayer(self):
+        # get layer from combobox
+        self.layer = self.dlg.mMapLayerComboBox.currentLayer()
+
+    def getFilename(self):
+        # get file name from line edit
+        self.filename = self.dlg.lineEdit.text()
+
 
     def run(self):
         """Run method that performs all the real work"""
@@ -199,31 +234,19 @@ class bpla_plugin_flights:
         if result:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
-            self.pressOkButton()
+
+            self.getLayer()
+            self.getFilename()
+
+            # removing zero features
+            if self.dlg.checkBox.isChecked():
+                layer = removeZeroFeatures(self.layer)
+
+            # saving the result into file
+            message = self.layerToShapefile()
+            iface.messageBar().pushMessage(message, level=0)
+
             pass
 
-    def pressOkButton(self):
-        import sys
-        from osgeo import ogr
 
-        fn = r'M:\YandexDisk\QGIS\qgis_plugins\data source\shapefiles\20200905_(F25-27)wMagnCoord.shp'
-        ds = ogr.Open(fn, 0)
-        if ds is None:
-            sys.exit('Could not open {0}.'.format(fn))
-        lyr = ds.GetLayer(0)
-        # lyr = self.dlg.mMapLayerComboBox.VectorLayer
 
-        i = 0
-        for feat in lyr:
-            pt = feat.geometry()
-            x = pt.GetX()
-            y = pt.GetY()
-            longitude = feat.GetField('LON')
-            latitude = feat.GetField('LAT')
-            # fieldName = self.dlg.mFieldComboBox.currentField()
-            lineStr = '{0} : {1}'.format(float(longitude),float(latitude))
-            iface.messageBar().pushMessage(lineStr, level=0)
-            i += 1
-            if i == 1:
-                break
-        del ds

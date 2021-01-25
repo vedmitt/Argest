@@ -44,3 +44,9 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
         self.mMapLayerComboBox.setFilters(QgsMapLayerProxyModel.VectorLayer)
+        self.checkBox.setChecked(True)
+        self.toolButton.clicked.connect(self.getSaveFileName)
+
+    def getSaveFileName(self):
+        fn = QtWidgets.QFileDialog.getSaveFileName(self, 'Save file')[0]
+        self.lineEdit.setText(fn)
