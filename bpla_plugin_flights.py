@@ -27,13 +27,13 @@ from qgis.PyQt.QtWidgets import QAction
 
 # Initialize Qt resources from file resources.py
 # Import the code for the dialog
-from qgis.core import QgsVectorFileWriter, QgsProject
+from qgis.core import QgsVectorFileWriter, QgsProject, QgsVectorLayer, QgsDataProvider, QgsFeatureRequest
 
-from .bpla_plugin_flights_dialog import bpla_plugin_flightsDialog
+from .bpla_plugin_flights_dialog import bpla_plugin_flightsDialog, edit
 import os.path
 from qgis.utils import *
 
-from .features_editing import *
+# from .features_editing import *
 
 class bpla_plugin_flights:
     """QGIS Plugin Implementation."""
@@ -182,6 +182,20 @@ class bpla_plugin_flights:
                 action)
             self.iface.removeToolBarIcon(action)
 
+    def removeZeroFeatures(self):  # save new file without zero features
+        with edit(self.layer):
+            # build a request to filter the features based on an attribute
+            request = QgsFeatureRequest().setFilterExpression('"LON" = 0.0 and "LAT" = 0.0')
+
+            # we don't need attributes or geometry, skip them to minimize overhead.
+            # these lines are not strictly required but improve performance
+            request.setSubsetOfAttributes([])
+            request.setFlags(QgsFeatureRequest.NoGeometry)
+
+            # loop over the features and delete
+            for f in self.layer.getFeatures(request):
+                self.layer.deleteFeature(f.id())
+
     def layerToCsv(self):
         # write the attribute table of a layer to a csv file
         with open(self.filename, 'w') as f:
@@ -204,9 +218,16 @@ class bpla_plugin_flights:
                                                         "ESRI Shapefile")
 
         if error[0] == QgsVectorFileWriter.NoError:
-            return "Successfully saved!"
+            iface.messageBar().pushMessage("Successfully saved!", level=0)
+            # # uploading new file to the map
+            # layer = iface.addVectorLayer(r"M:\Sourcetree\bpla_plugin_flights\output\test1.shp", "new_layer", "ogr")
+            filepath = self.filename + '.shp'
+            # iface.messageBar().pushMessage(filepath, level=0)
+            layer = iface.addVectorLayer(filepath, "new_layer", "ogr")
+            if not layer:
+                iface.messageBar().pushMessage("Layer failed to load!", level=0)
         else:
-            return 'Something went wrong... '+error
+            iface.messageBar().pushMessage("Something went wrong... ", error,  level=0)
 
     def getLayer(self):
         # get layer from combobox
@@ -240,11 +261,10 @@ class bpla_plugin_flights:
 
             # removing zero features
             if self.dlg.checkBox.isChecked():
-                layer = removeZeroFeatures(self.layer)
+                self.removeZeroFeatures()
 
             # saving the result into file
-            message = self.layerToShapefile()
-            iface.messageBar().pushMessage(message, level=0)
+            self.layerToShapefile()
 
             pass
 

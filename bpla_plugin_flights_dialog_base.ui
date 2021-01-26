@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>395</width>
-    <height>224</height>
+    <height>314</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -41,12 +41,46 @@
    <item>
     <widget class="QCheckBox" name="checkBox">
      <property name="text">
-      <string>Удалить нулевые точки?</string>
+      <string>Удалить нулевые точки</string>
      </property>
      <property name="checked">
       <bool>true</bool>
      </property>
     </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_4">
+     <item>
+      <widget class="QLabel" name="label_4">
+       <property name="text">
+        <string>Введите значение азимута (от 0 до 180 градусов): </string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QDoubleSpinBox" name="doubleSpinBox">
+       <property name="autoFillBackground">
+        <bool>false</bool>
+       </property>
+       <property name="maximum">
+        <double>180.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
    <item>
     <spacer name="verticalSpacer">
