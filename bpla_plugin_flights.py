@@ -32,6 +32,8 @@ from qgis.core import QgsVectorFileWriter, QgsProject, QgsVectorLayer, QgsDataPr
 from .bpla_plugin_flights_dialog import bpla_plugin_flightsDialog, edit
 import os.path
 from qgis.utils import *
+from osgeo import ogr
+import sys
 
 # from .features_editing import *
 
@@ -182,7 +184,34 @@ class bpla_plugin_flights:
                 action)
             self.iface.removeToolBarIcon(action)
 
-    def removeZeroFeatures(self):  # save new file without zero features
+    def layerToList(self):
+        # create temp layer
+        # open an input datasource
+        indriver = ogr.GetDriverByName('ESRI shapefile')
+        srcdb = indriver.Open(self.layer, 0)
+
+        # create an output datasource in memory
+        outdriver = ogr.GetDriverByName('MEMORY')
+        source = outdriver.CreateDataSource('memData')
+
+        # open the memory datasource with write access
+        tmp = outdriver.Open('memData', 1)
+
+        # copy a layer to memory
+        pipes_mem = source.CopyLayer(srcdb.GetLayer(self.layer), 'temp_layer', ['OVERWRITE=YES'])
+
+        # the new layer can be directly accessed via the handle pipes_mem or as source.GetLayer('temp_layer'):
+        layer = source.GetLayer('temp_layer')
+        for feature in layer:
+            iface.messageBar().pushMessage(feature.GetField(0), feature['TIME'], level=0)
+            # print(feature.GetField(0), feature['TIME'])
+            # feature.SetField('SOMETHING', 1)
+            break
+
+        # create list of features
+        pass
+
+    def removeZeroFeatures(self):
         with edit(self.layer):
             # build a request to filter the features based on an attribute
             request = QgsFeatureRequest().setFilterExpression('"LON" = 0.0 and "LAT" = 0.0')
@@ -195,39 +224,31 @@ class bpla_plugin_flights:
             # loop over the features and delete
             for f in self.layer.getFeatures(request):
                 self.layer.deleteFeature(f.id())
+    #
 
-    def layerToCsv(self):
-        # write the attribute table of a layer to a csv file
-        with open(self.filename, 'w') as f:
-            fields = [field.name() for field in self.layer.fields()]
-            row = ','.join(fields) + '\n'
-            f.write(row)
-            for feature in self.layer.getFeatures():
-                row = ','.join(str(feature[field]) for field in fields) + '\n'
-                f.write(row)
-
-    def layerToShapefile(self):
-        # Write to an ESRI Shapefile format dataset using UTF-8 text encoding
-        save_options = QgsVectorFileWriter.SaveVectorOptions()
-        save_options.driverName = "ESRI Shapefile"
-        save_options.fileEncoding = "UTF-8"
-        transform_context = QgsProject.instance().transformContext()
-
-        error = QgsVectorFileWriter.writeAsVectorFormat(self.layer, self.filename,
-                                                        "CP1250", self.layer.crs(),
-                                                        "ESRI Shapefile")
-
-        if error[0] == QgsVectorFileWriter.NoError:
-            iface.messageBar().pushMessage("Successfully saved!", level=0)
-            # # uploading new file to the map
-            # layer = iface.addVectorLayer(r"M:\Sourcetree\bpla_plugin_flights\output\test1.shp", "new_layer", "ogr")
-            filepath = self.filename + '.shp'
-            # iface.messageBar().pushMessage(filepath, level=0)
-            layer = iface.addVectorLayer(filepath, "new_layer", "ogr")
-            if not layer:
-                iface.messageBar().pushMessage("Layer failed to load!", level=0)
-        else:
-            iface.messageBar().pushMessage("Something went wrong... ", error,  level=0)
+    #
+    # def layerToShapefile(self):
+    #     # Write to an ESRI Shapefile format dataset using UTF-8 text encoding
+    #     save_options = QgsVectorFileWriter.SaveVectorOptions()
+    #     save_options.driverName = "ESRI Shapefile"
+    #     save_options.fileEncoding = "UTF-8"
+    #     transform_context = QgsProject.instance().transformContext()
+    #
+    #     error = QgsVectorFileWriter.writeAsVectorFormat(self.layer, self.filename,
+    #                                                     "CP1250", self.layer.crs(),
+    #                                                     "ESRI Shapefile")
+    #
+    #     if error[0] == QgsVectorFileWriter.NoError:
+    #         iface.messageBar().pushMessage("Successfully saved!", level=0)
+    #         # # uploading new file to the map
+    #         # layer = iface.addVectorLayer(r"M:\Sourcetree\bpla_plugin_flights\output\test1.shp", "new_layer", "ogr")
+    #         filepath = self.filename + '.shp'
+    #         # iface.messageBar().pushMessage(filepath, level=0)
+    #         layer = iface.addVectorLayer(filepath, "new_layer", "ogr")
+    #         if not layer:
+    #             iface.messageBar().pushMessage("Layer failed to load!", level=0)
+    #     else:
+    #         iface.messageBar().pushMessage("Something went wrong... ", error,  level=0)
 
     def getLayer(self):
         # get layer from combobox
@@ -259,14 +280,17 @@ class bpla_plugin_flights:
             self.getLayer()
             self.getFilename()
 
+            self.layerToList()
             # removing zero features
-            if self.dlg.checkBox.isChecked():
-                self.removeZeroFeatures()
+            # if self.dlg.checkBox.isChecked():
+            #     self.removeZeroFeatures()
 
             # saving the result into file
-            self.layerToShapefile()
+            # self.layerToShapefile()
 
             pass
+
+
 
 
 
