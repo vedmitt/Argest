@@ -28,7 +28,12 @@ from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
 from qgis.core import *
 
+from osgeo import ogr
+import sys
+
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
+from qgis.utils import iface
+
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'bpla_plugin_flights_dialog_base.ui'))
 
@@ -46,7 +51,170 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.mMapLayerComboBox.setFilters(QgsMapLayerProxyModel.VectorLayer)
         self.checkBox.setChecked(True)
         self.toolButton.clicked.connect(self.getSaveFileName)
+        self.pushButton.clicked.connect(self.doResult)
 
     def getSaveFileName(self):
         fn = QtWidgets.QFileDialog.getSaveFileName(self, 'Save file')[0]
-        self.lineEdit.setText(fn)
+        self.lineEdit.setText(fn + '.shp')
+
+    def getLayer(self):
+        # get layer from combobox
+        self.layer = self.mMapLayerComboBox.currentLayer()
+        cur_lyr_path = self.layer.dataProvider().dataSourceUri()
+        char_arr = cur_lyr_path.split('|')
+        self.layerpath = char_arr[0]
+        self.layername = self.layer.name()
+
+    def getFilepath(self):
+        # get file name from line edit
+        self.filepath = self.lineEdit.text()
+        fn = os.path.basename(self.filepath)
+        fn = fn.split('.shp')
+        self.filename = fn[0]
+
+    def doResult(self):
+        self.getLayer()
+        self.getFilepath()
+        self.layerToList()
+        self.removeZeroFeatures()
+        self.listToShapefile()
+        self.remZeroPointsFromLayer()
+
+    def layerToList(self):
+        self.textEdit.append(self.layerpath)
+        self.textEdit.append(self.layername)
+        self.textEdit.append(self.filepath)
+        self.textEdit.append(self.filename)
+
+        # create temp layer
+        # open an input datasource
+        indriver = ogr.GetDriverByName('ESRI shapefile')
+        srcdb = indriver.Open(self.layerpath, 0)
+
+        # create an output datasource in memory
+        outdriver = ogr.GetDriverByName('MEMORY')
+        source = outdriver.CreateDataSource('memData')
+
+        # open the memory datasource with write access
+        tmp = outdriver.Open('memData', 1)
+
+        # copy a layer to memory
+        pipes_mem = source.CopyLayer(srcdb.GetLayer(self.layername), 'temp_layer', ['OVERWRITE=YES'])
+
+        # the new layer can be directly accessed via the handle pipes_mem or as source.GetLayer('temp_layer'):
+        templayer = source.GetLayer('temp_layer')
+
+        # next we work only with temp layer
+        # create list of features
+        self.listFeat = []
+        for f in templayer:
+            self.listFeat.append(f)
+        self.textEdit.append('List items count: ' + str(len(self.listFeat)))
+        templayer.ResetReading()
+
+        del indriver, outdriver, srcdb, source
+
+
+    def removeZeroFeatures(self):
+        if self.checkBox.isChecked:
+            self.textEdit.append('Checkbox is checked!')
+            self.listFeat.sort(key=lambda val: val['LON'] == 0.0, reverse=True)
+            for i in self.listFeat:
+                # self.textEdit.append(str(i['LON'])+' '+str(i['LAT']))
+                if i['LON'] == 0.0 and i['LAT'] == 0.0:
+                    # self.textEdit.append('first zero point!')
+                    self.listFeat.remove(i)
+                    # break
+        self.textEdit.append('List items count: ' + str(len(self.listFeat)))
+
+    def listToShapefile(self):  # from memory layer to shapefile
+        # Open the folder data source for writing
+        inds = ogr.Open(self.layerpath, 1)
+
+        if inds is None:
+            sys.exit('Could not open folder.')
+
+        # Get the input shapefile
+        in_lyr = inds.GetLayer()
+
+        # Create an output point layer
+        drv = ogr.GetDriverByName('ESRI Shapefile')
+        outds = drv.CreateDataSource(self.filepath)
+
+        # if outds.GetLayer('capital_cities'):
+        #     outds.DeleteLayer('capital_cities')
+        out_lyr = outds.CreateLayer(self.filename,
+                                    in_lyr.GetSpatialRef(),
+                                    ogr.wkbPoint)
+        out_lyr.CreateFields(in_lyr.schema)  # get old fields schema
+
+        # Create a blank feature
+        out_defn = out_lyr.GetLayerDefn()
+        out_feat = ogr.Feature(out_defn)
+
+        for in_feat in self.listFeat:
+            # Copy geometry and attributes
+            geom = in_feat.geometry()
+            out_feat.SetGeometry(geom)
+
+            for i in range(in_feat.GetFieldCount()):
+                value = in_feat.GetField(i)
+                out_feat.SetField(i, value)
+
+            # Insert the feature
+            out_lyr.CreateFeature(out_feat)
+
+        i = 0
+        for f in out_lyr:
+            # print(f['NAME'])
+            i += 1
+        self.textEdit.append('Features in layer ' + str(i))
+        out_lyr.ResetReading()
+
+        # out_lyr = outds.CopyLayer(inlyr, 'test2')
+        self.outlayer = out_lyr
+        del in_lyr, inds, out_lyr, outds
+
+    #     # Write to an ESRI Shapefile format dataset using UTF-8 text encoding
+    #     save_options = QgsVectorFileWriter.SaveVectorOptions()
+    #     save_options.driverName = "ESRI Shapefile"
+    #     save_options.fileEncoding = "UTF-8"
+    #     transform_context = QgsProject.instance().transformContext()
+    #
+    #     error = QgsVectorFileWriter.writeAsVectorFormat(self.layer, self.filename,
+    #                                                     "CP1250", self.layer.crs(),
+    #                                                     "ESRI Shapefile")
+    #
+    #     if error[0] == QgsVectorFileWriter.NoError:
+    #         iface.messageBar().pushMessage("Successfully saved!", level=0)
+    #         # # uploading new file to the map
+    #         # layer = iface.addVectorLayer(r"M:\Sourcetree\bpla_plugin_flights\output\test1.shp", "new_layer", "ogr")
+    #         filepath = self.filename + '.shp'
+    #         # iface.messageBar().pushMessage(filepath, level=0)
+    #         layer = iface.addVectorLayer(filepath, "new_layer", "ogr")
+    #         if not layer:
+    #             iface.messageBar().pushMessage("Layer failed to load!", level=0)
+    #     else:
+    #         iface.messageBar().pushMessage("Something went wrong... ", error,  level=0)
+
+    def remZeroPointsFromLayer(self):
+        layer = QgsVectorLayer(self.filepath, self.filename, 'ogr')
+        with edit(layer):
+            # build a request to filter the features based on an attribute
+            request = QgsFeatureRequest().setFilterExpression('"LON" = 0.0 and "LAT" = 0.0')
+
+            # we don't need attributes or geometry, skip them to minimize overhead.
+            # these lines are not strictly required but improve performance
+            request.setSubsetOfAttributes([])
+            request.setFlags(QgsFeatureRequest.NoGeometry)
+
+            # loop over the features and delete
+            for f in layer.getFeatures(request):
+                layer.deleteFeature(f.id())
+
+        layer = iface.addVectorLayer(self.filepath, self.filename, "ogr")
+        if not layer:
+            iface.messageBar().pushMessage("Layer failed to load!", level=0)
+
+
+

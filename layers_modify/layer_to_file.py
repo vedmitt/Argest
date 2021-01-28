@@ -1,6 +1,9 @@
+from datetime import datetime
+
 from qgis.core import (
     QgsVectorFileWriter,
     QgsProject, QgsFields, QgsField, QgsWkbTypes, QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer,
+    QgsFeatureRequest,
 )
 from qgis.PyQt.QtCore import QVariant
 from osgeo import ogr
@@ -79,6 +82,30 @@ def saveLayerToFile(layer, filepath): ## QgsVectorFileWriter  has no attriburte 
     # else:
     #     print(error)
 
+    def listToShapefile(self):
+        # # Write to an ESRI Shapefile format dataset using UTF-8 text encoding
+        # save_options = QgsVectorFileWriter.SaveVectorOptions()
+        # save_options.driverName = "ESRI Shapefile"
+        # save_options.fileEncoding = "UTF-8"
+        # transform_context = QgsProject.instance().transformContext()
+        #
+        # error = QgsVectorFileWriter.writeAsVectorFormat(self.layer, self.filename,
+        #                                                 "CP1250", self.layer.crs(),
+        #                                                 "ESRI Shapefile")
+        #
+        # if error[0] == QgsVectorFileWriter.NoError:
+        #     iface.messageBar().pushMessage("Successfully saved!", level=0)
+        #     # # uploading new file to the map
+        #     # layer = iface.addVectorLayer(r"M:\Sourcetree\bpla_plugin_flights\output\test1.shp", "new_layer", "ogr")
+        #     filepath = self.filename + '.shp'
+        #     # iface.messageBar().pushMessage(filepath, level=0)
+        #     layer = iface.addVectorLayer(filepath, "new_layer", "ogr")
+        #     if not layer:
+        #         iface.messageBar().pushMessage("Layer failed to load!", level=0)
+        # else:
+        #     iface.messageBar().pushMessage("Something went wrong... ", error,  level=0)
+        pass
+
 def createFromMemoryProvider():
     # create layer
     vl = QgsVectorLayer("Point", "temporary_points", "memory")
@@ -128,9 +155,35 @@ def createTempLayer(inShapefile, layername):
 
     # the new layer can be directly accessed via the handle pipes_mem or as source.GetLayer('temp_layer'):
     layer = source.GetLayer('temp_layer')
-    for feature in layer:
-        print(feature.GetField(0), feature['TIME'])
-        # feature.SetField('SOMETHING', 1)
+
+    # for feature in layer:
+    #     print(feature['NAME'])
+    #     # feature.SetField('SOMETHING', 1)
+    # layer.ResetReading()
+    del indriver, srcdb, outdriver, source
+
+
+def getListFeatures(inShapefile, layername):
+    srcdb = ogr.Open(inShapefile, 1)
+    layer = srcdb.GetLayer()
+
+    # create a list with features
+    listFeat = []
+    for f in layer:
+        listFeat.append(f)
+
+    listFeat.sort(key=lambda val: val['LON'] == 0.0, reverse=True)
+    for i in listFeat:
+        # print(i['TIME'], i['LON'], i['LAT'])
+        if i['LON'] == 0.0 and i['LAT'] == 0.0:
+            # self.textEdit.append('first zero point!')
+            listFeat.remove(i)
+
+    for i in listFeat:
+        print(i['TIME'], i['LON'], i['LAT'])
+    print('List items count: ', len(listFeat))
+    return listFeat
+
 
 def createNewLayerFromOldDefinitions(inShapefile, outShapefile):
     # inds = ogr.Open(inShapefile)
@@ -149,13 +202,13 @@ def createNewLayerFromOldDefinitions(inShapefile, outShapefile):
     # Get the input shapefile
     in_lyr = inds.GetLayer()
 
-    # create a list with features
-    listFeat = []
-    for f in in_lyr:
-        listFeat.append(f)
-    # for i in listFeat:
-    #     print(i['name'])
-    print('List items count: ', len(listFeat))
+    # # create a list with features
+    # listFeat = []
+    # for f in in_lyr:
+    #     listFeat.append(f)
+    # # for i in listFeat:
+    # #     print(i['name'])
+    # print('List items count: ', len(listFeat))
 
     # inlyr.SetAttributeFilter('name = "hello"')
     # Create a point layer
@@ -195,7 +248,7 @@ def createNewLayerFromOldDefinitions(inShapefile, outShapefile):
     print('Features in layer', i)
     out_lyr.ResetReading()
 
-    # out_lyr = outds.CopyLayer(inlyr, 'test2')
+    # out_lyr = outds.CopyLayer(in_lyr, 'test2')
     del in_lyr, inds, out_lyr, outds
 
 
@@ -240,6 +293,40 @@ def saveConvexhullOfAllGeometryToOutputLayer(inShapefile, outShapefile):
     inDataSource = None
     outDataSource = None
 
+def timeSort():
+    vlayer = QgsVectorLayer(r'M:\Sourcetree\bpla_plugin_flights\input_data\20200905_(F9-17)wMagnCoord.shp', '20200905_(F9-17)wMagnCoord', 'ogr')
+    request = QgsFeatureRequest()
+    request.setLimit(10)
+    # for field in vlayer.fields():
+    #     print(field.name(), field.typeName())
+
+    # data_format = '%m-%d-%YT%H:%M:%S,%f'
+    #
+    # dt_obj_1 = datetime.datetime.strptime(dt_str_1, data_format)
+    # dt_obj_2 = datetime.datetime.strptime(dt_str_2, data_format)
+    #
+    # print('Date:', dt_obj_1.date())
+    # print('Time:', dt_obj_1.time())
+    #
+    # print('Date:', dt_obj_2.date())
+    # print('Time:', dt_obj_2.time())
+
+    for feat in vlayer.getFeatures(request):
+        # print(feat.id(), feat["TIME"])
+        if feat.id() == 0:
+            prevFeat = feat
+            print(prevFeat['TIME'])
+        elif feat.id() == 1:
+            nextFeat = feat
+            print(nextFeat['TIME'])
+        else:
+            prevFeat = nextFeat
+            nextFeat = feat
+            print(prevFeat['TIME'])
+            print(nextFeat['TIME'])
+            pass
+
+
 if __name__ == "__main__":
     # vlayer = QgsVectorLayer(r'M:\YandexDisk\QGIS\osgeopy\osgeopy-data\global\ne_50m_populated_places.shp', 'capital_cities', 'ogr')
     # vlayer = QgsVectorLayer(r'M:\YandexDisk\QGIS\temp\newpoints.shp', 'degree_days', 'ogr')
@@ -250,18 +337,21 @@ if __name__ == "__main__":
     # saveLayerToFile(vlayer)
     # createFromMemoryProvider()
 
-    inShapefile = r'M:\YandexDisk\QGIS\osgeopy\osgeopy-data\global\ne_50m_populated_places.shp'
+    # inShapefile = r'M:\YandexDisk\QGIS\osgeopy\osgeopy-data\global\ne_50m_populated_places.shp'
     # inShapefile = r'M:\YandexDisk\QGIS\temp\newpoints.shp'
-    # inShapefile = r'input_data\20200905_(F18-24)wMagnCoord.shp'
+    inShapefile = r'M:\Sourcetree\bpla_plugin_flights\input_data\20200905_(F9-17)wMagnCoord.shp'
     # layername = '20200905_(F18-24)wMagnCoord'
     # outShapefile = r'M:\YandexDisk\QGIS\temp\states_convexhull.shp'
-    outShapefile = r'M:\YandexDisk\QGIS\temp\newpoints2.shp'
+    outShapefile = r'M:\YandexDisk\QGIS\temp\test1.shp'
 
     # saveConvexhullOfAllGeometryToOutputLayer(inShapefile, outShapefile)
     # newTest()
-    # createTempLayer(inShapefile, layername)
-    createNewLayerFromOldDefinitions(inShapefile, outShapefile)
+    # createTempLayer(inShapefile, '20200905_(F9-17)wMagnCoord')
+    # createNewLayerFromOldDefinitions(inShapefile, outShapefile)
 
+    # list = getListFeatures(inShapefile, '20200905_(F9-17)wMagnCoord.shp')
+
+    timeSort()
     pass
 
 

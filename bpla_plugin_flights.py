@@ -184,80 +184,6 @@ class bpla_plugin_flights:
                 action)
             self.iface.removeToolBarIcon(action)
 
-    def layerToList(self):
-        # create temp layer
-        # open an input datasource
-        indriver = ogr.GetDriverByName('ESRI shapefile')
-        srcdb = indriver.Open(self.layer, 0)
-
-        # create an output datasource in memory
-        outdriver = ogr.GetDriverByName('MEMORY')
-        source = outdriver.CreateDataSource('memData')
-
-        # open the memory datasource with write access
-        tmp = outdriver.Open('memData', 1)
-
-        # copy a layer to memory
-        pipes_mem = source.CopyLayer(srcdb.GetLayer(self.layer), 'temp_layer', ['OVERWRITE=YES'])
-
-        # the new layer can be directly accessed via the handle pipes_mem or as source.GetLayer('temp_layer'):
-        layer = source.GetLayer('temp_layer')
-        for feature in layer:
-            iface.messageBar().pushMessage(feature.GetField(0), feature['TIME'], level=0)
-            # print(feature.GetField(0), feature['TIME'])
-            # feature.SetField('SOMETHING', 1)
-            break
-
-        # create list of features
-        pass
-
-    def removeZeroFeatures(self):
-        with edit(self.layer):
-            # build a request to filter the features based on an attribute
-            request = QgsFeatureRequest().setFilterExpression('"LON" = 0.0 and "LAT" = 0.0')
-
-            # we don't need attributes or geometry, skip them to minimize overhead.
-            # these lines are not strictly required but improve performance
-            request.setSubsetOfAttributes([])
-            request.setFlags(QgsFeatureRequest.NoGeometry)
-
-            # loop over the features and delete
-            for f in self.layer.getFeatures(request):
-                self.layer.deleteFeature(f.id())
-    #
-
-    #
-    # def layerToShapefile(self):
-    #     # Write to an ESRI Shapefile format dataset using UTF-8 text encoding
-    #     save_options = QgsVectorFileWriter.SaveVectorOptions()
-    #     save_options.driverName = "ESRI Shapefile"
-    #     save_options.fileEncoding = "UTF-8"
-    #     transform_context = QgsProject.instance().transformContext()
-    #
-    #     error = QgsVectorFileWriter.writeAsVectorFormat(self.layer, self.filename,
-    #                                                     "CP1250", self.layer.crs(),
-    #                                                     "ESRI Shapefile")
-    #
-    #     if error[0] == QgsVectorFileWriter.NoError:
-    #         iface.messageBar().pushMessage("Successfully saved!", level=0)
-    #         # # uploading new file to the map
-    #         # layer = iface.addVectorLayer(r"M:\Sourcetree\bpla_plugin_flights\output\test1.shp", "new_layer", "ogr")
-    #         filepath = self.filename + '.shp'
-    #         # iface.messageBar().pushMessage(filepath, level=0)
-    #         layer = iface.addVectorLayer(filepath, "new_layer", "ogr")
-    #         if not layer:
-    #             iface.messageBar().pushMessage("Layer failed to load!", level=0)
-    #     else:
-    #         iface.messageBar().pushMessage("Something went wrong... ", error,  level=0)
-
-    def getLayer(self):
-        # get layer from combobox
-        self.layer = self.dlg.mMapLayerComboBox.currentLayer()
-
-    def getFilename(self):
-        # get file name from line edit
-        self.filename = self.dlg.lineEdit.text()
-
 
     def run(self):
         """Run method that performs all the real work"""
@@ -277,10 +203,10 @@ class bpla_plugin_flights:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
 
-            self.getLayer()
-            self.getFilename()
+            # self.getLayer()
+            # self.getFilename()
 
-            self.layerToList()
+            # self.layerToList()
             # removing zero features
             # if self.dlg.checkBox.isChecked():
             #     self.removeZeroFeatures()
