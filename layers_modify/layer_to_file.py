@@ -1,15 +1,17 @@
+import math
 from datetime import datetime
 
 from qgis.core import (
     QgsVectorFileWriter,
     QgsProject, QgsFields, QgsField, QgsWkbTypes, QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer,
-    QgsFeatureRequest,
+    QgsFeatureRequest, QgsVectorDataProvider,
 )
 from qgis.PyQt.QtCore import QVariant
 from osgeo import ogr
 import os
 import sys
 
+import features_editing as broker
 
 def createFileDirectlyFromFeatures(): ## QgsVectorFileWriter has no attribute create
     # define fields for feature attributes. A QgsFields object is needed
@@ -293,38 +295,126 @@ def saveConvexhullOfAllGeometryToOutputLayer(inShapefile, outShapefile):
     inDataSource = None
     outDataSource = None
 
-def timeSort():
-    vlayer = QgsVectorLayer(r'M:\Sourcetree\bpla_plugin_flights\input_data\20200905_(F9-17)wMagnCoord.shp', '20200905_(F9-17)wMagnCoord', 'ogr')
-    request = QgsFeatureRequest()
-    request.setLimit(10)
-    # for field in vlayer.fields():
-    #     print(field.name(), field.typeName())
+def timeLoop():
+    vlayer = QgsVectorLayer(r'M:\Sourcetree\bpla_plugin_flights\output\test1.shp', 'test1', 'ogr')
+    limit = 12
+    # create new field with no content
+    pr = vlayer.dataProvider()
+    caps = pr.capabilities()
 
-    # data_format = '%m-%d-%YT%H:%M:%S,%f'
-    #
-    # dt_obj_1 = datetime.datetime.strptime(dt_str_1, data_format)
-    # dt_obj_2 = datetime.datetime.strptime(dt_str_2, data_format)
-    #
-    # print('Date:', dt_obj_1.date())
-    # print('Time:', dt_obj_1.time())
-    #
-    # print('Date:', dt_obj_2.date())
-    # print('Time:', dt_obj_2.time())
+    if caps & QgsVectorDataProvider.AddAttributes:
+        new_field = [QgsField("FLIGHT_NUM", QVariant.Int)]
+        if (new_field not in vlayer.fields()) and vlayer.fields().count() == 7:
+            pr.addAttributes(new_field)
+            vlayer.updateFields()
+
+    request = QgsFeatureRequest()
+    request.setLimit(limit)
+
+    i = 1
+    boolYesNo = False
+    prevFeat = None
+    nextFeat = None
 
     for feat in vlayer.getFeatures(request):
-        # print(feat.id(), feat["TIME"])
         if feat.id() == 0:
             prevFeat = feat
-            print(prevFeat['TIME'])
         elif feat.id() == 1:
             nextFeat = feat
-            print(nextFeat['TIME'])
+            boolYesNo = timeSort(prevFeat, nextFeat)
         else:
             prevFeat = nextFeat
             nextFeat = feat
-            print(prevFeat['TIME'])
-            print(nextFeat['TIME'])
-            pass
+            boolYesNo = timeSort(prevFeat, nextFeat)
+
+        print(boolYesNo)
+        if (boolYesNo is False) and (nextFeat is not None):
+            print(i)
+            # add new flight number
+            if caps & QgsVectorDataProvider.ChangeAttributeValues:
+                attrs = {7: i}
+                pr.changeAttributeValues({prevFeat.id(): attrs})
+                pr.changeAttributeValues({nextFeat.id(): attrs})
+                vlayer.updateFields()
+        elif nextFeat is not None:
+            i += 1
+            print(i)
+            # add new flight number
+            if caps & QgsVectorDataProvider.ChangeAttributeValues:
+                attrs = {7: i}
+                pr.changeAttributeValues({nextFeat.id(): attrs})
+                vlayer.updateFields()
+
+    broker.iterFeatures(vlayer, limit)
+
+
+def timeSort(prevFeat, nextFeat):
+    data_format = '%m-%d-%YT%H:%M:%S,%f'
+
+    prevDataTime = datetime.strptime(prevFeat['TIME'], data_format)
+    nextDataTime = datetime.strptime(nextFeat['TIME'], data_format)
+
+    print('Date:', prevDataTime.date())
+    print('Time:', prevDataTime.time())
+
+    print('Date:', nextDataTime.date())
+    print('Time:', nextDataTime.time())
+
+    if nextDataTime.date() != prevDataTime.date():
+        return True
+    # elif (nextDataTime.time().microsecond - prevDataTime.time().microsecond) == 500000:
+    elif (nextDataTime.time().second - prevDataTime.time().second) > 1:
+        return True
+    else:
+        return False
+
+
+def azimutCalc():
+    x1 = [3, 1]
+    x2 = [1, 2]
+    azimut = 95
+
+    # V = [x2[0]-x1[0], x2[1]-x2[1]]
+    # A = math.atan2(D.X * V.Y - D.Y * V.X, D.X * V.X + D.Y * V.Y)
+
+    # X = x2[0] - x1[0]
+    # Y = x2[1] - x1[1]
+    # if not Y < 0 and X == 0:
+    #     rAngle = math.pi * 0.5
+    # elif Y < 0 and X == 0:
+    #     rAngle = math.pi * 1.5
+    # elif Y == 0 and X > 0:
+    #     rAngle = 0
+    # elif Y == 0 and X < 0:
+    #     rAngle = math.pi
+    # elif X > 0 and Y > 0:
+    #     rAngle = math.atan(Y/X)
+    # elif X > 0 and Y < 0:
+    #     rAngle = math.pi * 2 + math.atan(Y/X)
+    # elif X < 0 and Y < 0:
+    #     rAngle = math.pi + math.atan(Y/X)
+    # elif X < 0 and Y > 0:
+    #     rAngle = math.pi + math.atan(Y/X)
+    # print(rAngle)
+    # dAngle = rAngle * 180 / math.pi
+    # print(dAngle)
+
+    dX = x2[0]-x1[0]
+    dY = x2[1]-x1[1]
+    dist = math.sqrt((dX * dX) + (dY * dY))
+    dXa = math.fabs(dX)
+    beta = math.degrees(math.acos(dXa / dist))
+    if (dX > 0):
+        if (dY < 0):
+            angle = 270 + beta
+        else:
+            angle = 270 - beta
+    else:
+        if (dY < 0):
+            angle = 90 - beta
+        else:
+            angle = 90 + beta
+    print(angle)  # 116.56505117707799 # 296.565051177078
 
 
 if __name__ == "__main__":
@@ -351,7 +441,8 @@ if __name__ == "__main__":
 
     # list = getListFeatures(inShapefile, '20200905_(F9-17)wMagnCoord.shp')
 
-    timeSort()
+    # timeLoop()
+    azimutCalc()
     pass
 
 

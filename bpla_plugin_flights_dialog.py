@@ -23,7 +23,9 @@
 """
 
 import os
+from datetime import datetime
 
+from PyQt5.QtCore import QVariant
 from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
 from qgis.core import *
@@ -71,14 +73,6 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         fn = os.path.basename(self.filepath)
         fn = fn.split('.shp')
         self.filename = fn[0]
-
-    def doResult(self):
-        self.getLayer()
-        self.getFilepath()
-        self.layerToList()
-        self.removeZeroFeatures()
-        self.listToShapefile()
-        self.remZeroPointsFromLayer()
 
     def layerToList(self):
         self.textEdit.append(self.layerpath)
@@ -198,8 +192,8 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
     #         iface.messageBar().pushMessage("Something went wrong... ", error,  level=0)
 
     def remZeroPointsFromLayer(self):
-        layer = QgsVectorLayer(self.filepath, self.filename, 'ogr')
-        with edit(layer):
+        self.newlayer = QgsVectorLayer(self.filepath, self.filename, 'ogr')
+        with edit(self.newlayer):
             # build a request to filter the features based on an attribute
             request = QgsFeatureRequest().setFilterExpression('"LON" = 0.0 and "LAT" = 0.0')
 
@@ -209,12 +203,95 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             request.setFlags(QgsFeatureRequest.NoGeometry)
 
             # loop over the features and delete
-            for f in layer.getFeatures(request):
-                layer.deleteFeature(f.id())
+            for f in self.newlayer.getFeatures(request):
+                self.newlayer.deleteFeature(f.id())
+            self.newlayer.updateFields()
+            # self.newlayer.ResetReading()
 
-        layer = iface.addVectorLayer(self.filepath, self.filename, "ogr")
+        # show our new layer without zero points into qgis
+        self.uploadLayer(self.filepath, self.filename, 'ogr')
+
+
+    def setFlightNumber(self):  ## working method
+        self.newlayer = QgsVectorLayer(r'M:\Sourcetree\bpla_plugin_flights\output\test1.shp', 'test1', 'ogr')
+
+        # create new field with no content
+        pr = self.newlayer.dataProvider()
+        caps = pr.capabilities()
+        request = QgsFeatureRequest()
+        request.setLimit(10)
+
+        if caps & QgsVectorDataProvider.AddAttributes:
+            new_field = [QgsField("FLIGHT_NUM", QVariant.Int)]
+            if (new_field not in self.newlayer.fields()) and self.newlayer.fields().count() == 7:
+                pr.addAttributes(new_field)
+                self.newlayer.updateFields()
+
+        i = 1
+        boolYesNo = False
+        prevFeat = None
+        nextFeat = None
+
+        for feat in self.newlayer.getFeatures(request):
+            if feat.id() == 0:
+                prevFeat = feat
+            elif feat.id() == 1:
+                nextFeat = feat
+                boolYesNo = self.timeSort(prevFeat, nextFeat)
+            else:
+                prevFeat = nextFeat
+                nextFeat = feat
+                boolYesNo = self.timeSort(prevFeat, nextFeat)
+
+            if (boolYesNo is False) and (nextFeat is not None):
+                # add new flight number
+                attrs = {7: i}
+                self.changeFeatValues(self.newlayer, prevFeat.id(), attrs)
+                self.changeFeatValues(self.newlayer, nextFeat.id(), attrs)
+            elif nextFeat is not None:
+                i += 1
+                # add new flight number
+                attrs = {7: i}
+                self.changeFeatValues(self.newlayer, nextFeat.id(), attrs)
+
+        # self.newlayer.ResetReading()
+        self.uploadLayer(r'M:\Sourcetree\bpla_plugin_flights\output\test1.shp', 'test1', 'ogr')
+
+    def timeSort(self, prevFeat, nextFeat):
+        data_format = '%m-%d-%YT%H:%M:%S,%f'
+
+        prevDataTime = datetime.strptime(prevFeat['TIME'], data_format)
+        nextDataTime = datetime.strptime(nextFeat['TIME'], data_format)
+
+        if nextDataTime.date() != prevDataTime.date():
+            return True
+        elif (nextDataTime.time().second - prevDataTime.time().second) > 1:
+            return True
+        else:
+            return False
+
+    def changeFeatValues(self, layer, fid, attrs):
+        pr = layer.dataProvider()
+        caps = pr.capabilities()
+        if caps & QgsVectorDataProvider.ChangeAttributeValues:
+            pr.changeAttributeValues({fid: attrs})
+            self.newlayer.updateFields()
+
+    def uploadLayer(self, filepath, filename, typeOfFile):
+        # show our new layer in qgis
+        layer = iface.addVectorLayer(filepath, filename, typeOfFile)
         if not layer:
             iface.messageBar().pushMessage("Layer failed to load!", level=0)
 
+    def doResult(self):
+        self.getLayer()
+        self.getFilepath()
+
+        # self.layerToList()
+        # self.removeZeroFeatures()
+        # self.listToShapefile()
+        # self.remZeroPointsFromLayer()
+
+        self.setFlightNumber()
 
 

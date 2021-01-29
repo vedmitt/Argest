@@ -161,17 +161,64 @@ def addFeatures(layer):
         (res, outFeats) = layer.dataProvider().addFeatures([feat])
 
 
-def modifyFeatures(layer):
-    caps = layer.dataProvider().capabilities()
-    fid = 10  # ID of the feature we will modify
-    # The following example first changes values of attributes with index 0 and 1, then it changes the feature’s geometry.
-    if caps & QgsVectorDataProvider.ChangeAttributeValues:
-        attrs = {0: "hello", 1: 123}
-        layer.dataProvider().changeAttributeValues({fid: attrs})
+def modifyFeatures(vlayer):
+    vlayer = QgsVectorLayer(r'M:\Sourcetree\bpla_plugin_flights\output\test1.shp', 'test1', 'ogr')
 
-    if caps & QgsVectorDataProvider.ChangeGeometries:
-        geom = QgsGeometry.fromPointXY(QgsPointXY(111, 222))
-        layer.dataProvider().changeGeometryValues({fid: geom})
+    fieldsCount = vlayer.fields().count()
+    print('All fields amount: {0}'.format(fieldsCount))
+
+    # create new field with no content
+    pr = vlayer.dataProvider()
+    caps = pr.capabilities()
+
+    # pr.deleteAttributes([7])
+    # vlayer.updateFields()
+
+    if caps & QgsVectorDataProvider.AddAttributes:
+        new_field = [QgsField("FLIGHT_NUM", QVariant.Int)]
+        if (new_field not in vlayer.fields()) and fieldsCount == 7:
+            pr.addAttributes(new_field)
+            vlayer.updateFields()
+
+    # for field in vlayer.fields():
+    #     print(field.name())
+
+    iterFeatures(vlayer, 2)
+
+    request = QgsFeatureRequest()
+    request.setLimit(2)
+
+    if caps & QgsVectorDataProvider.ChangeAttributeValues:
+        for feat in vlayer.getFeatures(request):
+            attrs = {7: 1}
+            print(attrs)
+            pr.changeAttributeValues({feat.id(): attrs})
+            vlayer.updateFields()
+
+    iterFeatures(vlayer, 2)
+
+    # caps = layer.dataProvider().capabilities()
+    #
+    # # if caps & QgsVectorDataProvider.AddAttributes:
+    # #     res = layer.dataProvider().addAttributes(
+    # #         [QgsField("newField", QVariant.String), # adding NULL every time :(
+    # #          QgsField("myint", QVariant.Int)])
+    #
+    # if caps & QgsVectorDataProvider.DeleteAttributes:
+    #     res = layer.dataProvider().deleteAttributes([2])
+    #
+    # layer.updateFields()  # compulsory!
+
+    # caps = pr.capabilities()
+    # fid = 10  # ID of the feature we will modify
+    # The following example first changes values of attributes with index 0 and 1, then it changes the feature’s geometry.
+    # if caps & QgsVectorDataProvider.ChangeAttributeValues:
+    #     attrs = {0: "hello", 1: 123}
+    #     layer.dataProvider().changeAttributeValues({fid: attrs})
+    #
+    # if caps & QgsVectorDataProvider.ChangeGeometries:
+    #     geom = QgsGeometry.fromPointXY(QgsPointXY(111, 222))
+    #     layer.dataProvider().changeGeometryValues({fid: geom})
 
 
 def modifyLayersEditingBuffer(layer):  # not working?
@@ -259,10 +306,14 @@ def selectFeatures(layer):
         pass
 
 
-def iterFeatures(layer):
+def iterFeatures(layer, limit=0):
     # "layer" is a QgsVectorLayer instance
     # layer = iface.activeLayer()
-    features = layer.getFeatures()
+    request = QgsFeatureRequest()
+    if limit > 0:
+        request.setLimit(limit)
+    features = layer.getFeatures(request)
+
     # num_features = layer.GetFeatureCount()
     # print('\n All features amount: {0}'.format(num_features))
 
@@ -332,9 +383,11 @@ if __name__ == "__main__":
     ## or
     # print(vlayer.displayField())
 
-    featuresToList(vlayer)
+    # featuresToList(vlayer)
     # removeZeroFeatures(vlayer)
     # iterFeatures(vlayer)
+
+    modifyFeatures(vlayer)
 
     pass
 
