@@ -1,6 +1,7 @@
 import math
 from datetime import datetime
 
+from click import edit
 from qgis.core import (
     QgsVectorFileWriter,
     QgsProject, QgsFields, QgsField, QgsWkbTypes, QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer,
@@ -362,59 +363,86 @@ def timeSort(prevFeat, nextFeat):
 
     if nextDataTime.date() != prevDataTime.date():
         return True
-    # elif (nextDataTime.time().microsecond - prevDataTime.time().microsecond) == 500000:
     elif (nextDataTime.time().second - prevDataTime.time().second) > 1:
         return True
     else:
         return False
 
 
-def azimutCalc():
-    x1 = [3, 1]
-    x2 = [1, 2]
-    azimut = 95
-
-    # V = [x2[0]-x1[0], x2[1]-x2[1]]
-    # A = math.atan2(D.X * V.Y - D.Y * V.X, D.X * V.X + D.Y * V.Y)
-
-    # X = x2[0] - x1[0]
-    # Y = x2[1] - x1[1]
-    # if not Y < 0 and X == 0:
-    #     rAngle = math.pi * 0.5
-    # elif Y < 0 and X == 0:
-    #     rAngle = math.pi * 1.5
-    # elif Y == 0 and X > 0:
-    #     rAngle = 0
-    # elif Y == 0 and X < 0:
-    #     rAngle = math.pi
-    # elif X > 0 and Y > 0:
-    #     rAngle = math.atan(Y/X)
-    # elif X > 0 and Y < 0:
-    #     rAngle = math.pi * 2 + math.atan(Y/X)
-    # elif X < 0 and Y < 0:
-    #     rAngle = math.pi + math.atan(Y/X)
-    # elif X < 0 and Y > 0:
-    #     rAngle = math.pi + math.atan(Y/X)
-    # print(rAngle)
-    # dAngle = rAngle * 180 / math.pi
-    # print(dAngle)
+def azimutCalc(x1, x2):
+    # x1 = [3, 1]
+    # x2 = [1, 2]
 
     dX = x2[0]-x1[0]
     dY = x2[1]-x1[1]
     dist = math.sqrt((dX * dX) + (dY * dY))
     dXa = math.fabs(dX)
-    beta = math.degrees(math.acos(dXa / dist))
-    if (dX > 0):
-        if (dY < 0):
-            angle = 270 + beta
+    if dist != 0:
+        beta = math.degrees(math.acos(dXa / dist))
+        if (dX > 0):
+            if (dY < 0):
+                angle = 270 + beta
+            else:
+                angle = 270 - beta
         else:
-            angle = 270 - beta
+            if (dY < 0):
+                angle = 90 - beta
+            else:
+                angle = 90 + beta
+        # print(angle)   # 296.565051177078 - 116.56505117707799 = 180
+        return angle
     else:
-        if (dY < 0):
-            angle = 90 - beta
+        return 0
+
+
+def removePointsFromAzimut(layer, prevFeat, nextFeat, azimut):
+    angle = azimutCalc([prevFeat['LON'], prevFeat['LAT']], [nextFeat['LON'], nextFeat['LAT']])
+    accuracy = 15
+    # print(angle)
+    # print(azimut)
+
+    # print(math.fabs(angle - azimut))
+    # print(math.fabs(angle - (azimut + 180)))
+
+    caps = layer.dataProvider().capabilities()
+
+    if (math.fabs(angle - azimut) < accuracy) or (math.fabs(angle - (azimut + 180)) < accuracy):
+        # print(prevFeat.id(), prevFeat['FLIGHT_NUM'], prevFeat['LON'], prevFeat['LAT'])
+        # print(math.fabs(angle - azimut))
+        # print(math.fabs(angle - (azimut + 180)))
+        # print('Nope!')
+        pass
+    else:
+        # remove points
+        print(prevFeat.id(), prevFeat['FLIGHT_NUM'], prevFeat['LON'], prevFeat['LAT'])
+        if caps & QgsVectorDataProvider.DeleteFeatures:
+            res = layer.dataProvider().deleteFeatures([prevFeat.id()])
+            layer.updateFields()
+            print(res)
+
+def fromLayerGetAzimut(max_flnum, azimut):
+    vlayer = QgsVectorLayer(r'M:\Sourcetree\bpla_plugin_flights\output\test2.shp', 'test2', 'ogr')
+
+    request = QgsFeatureRequest().setFilterExpression('"FLIGHT_NUM" = 1')
+    # request.setLimit(10)
+
+    prevFeat = None
+    nextFeat = None
+
+    for feat in vlayer.getFeatures(request):
+        if feat.id() == 0:
+            prevFeat = feat
+        elif feat.id() == 1:
+            nextFeat = feat
+            removePointsFromAzimut(vlayer, prevFeat, nextFeat, azimut)
         else:
-            angle = 90 + beta
-    print(angle)  # 116.56505117707799 # 296.565051177078
+            prevFeat = nextFeat
+            nextFeat = feat
+            removePointsFromAzimut(vlayer, prevFeat, nextFeat, azimut)
+
+    # for feat in vlayer.getFeatures(request):
+    #     print(feat.id(), feat['FLIGHT_NUM'], feat['LON'], feat['LAT'])
+
 
 
 if __name__ == "__main__":
@@ -442,7 +470,8 @@ if __name__ == "__main__":
     # list = getListFeatures(inShapefile, '20200905_(F9-17)wMagnCoord.shp')
 
     # timeLoop()
-    azimutCalc()
+    fromLayerGetAzimut(4, 90)
+
     pass
 
 
