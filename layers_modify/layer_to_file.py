@@ -302,7 +302,7 @@ def timeLoop():
     # create new field with no content
     pr = vlayer.dataProvider()
     caps = pr.capabilities()
-
+    print(vlayer.fields().count())
     if caps & QgsVectorDataProvider.AddAttributes:
         new_field = [QgsField("FLIGHT_NUM", QVariant.Int)]
         if (new_field not in vlayer.fields()) and vlayer.fields().count() == 7:
@@ -474,8 +474,8 @@ if __name__ == "__main__":
 
     # list = getListFeatures(inShapefile, '20200905_(F9-17)wMagnCoord.shp')
 
-    # timeLoop()
-    fromLayerGetAzimut(90)
+    timeLoop()
+    # fromLayerGetAzimut(90)
 
     pass
 

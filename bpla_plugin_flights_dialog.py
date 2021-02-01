@@ -264,11 +264,11 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         request = QgsFeatureRequest()
         # request.setLimit(10)
 
-        fieldNum = 7
+        fieldNum = self.newlayer.fields().count()
         self.textEdit.append('\nНачинаем сквозную нумерацию полетов...')
         if caps & QgsVectorDataProvider.AddAttributes:
             new_field = [QgsField("FLIGHT_NUM", QVariant.Int)]
-            if (new_field not in self.newlayer.fields()) and self.newlayer.fields().count() == fieldNum:
+            if new_field not in self.newlayer.fields():
                 pr.addAttributes(new_field)
                 self.newlayer.updateFields()
 
@@ -396,6 +396,9 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         # self.layerToList()
         # self.removeZeroFeatures()
         # self.listToShapefile()
+
+        # self.newlayer = QgsVectorLayer(r'M:\YandexDisk\QGIS\temp\test_pro1.shp', 'test_pro1', 'ogr')
+        # self.azimutUser = 90
 
         res = self.copyLayer()
         self.textEdit.append(res[0])
