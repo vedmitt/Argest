@@ -132,7 +132,7 @@ def createFromMemoryProvider():
 
     # show some stats
     print("fields:", len(pr.fields()))
-    print("features:", pr.featureCount())
+    print("features:", pr.initFeatCount())
     e = vl.extent()
     print("extent:", e.xMinimum(), e.yMinimum(), e.xMaximum(), e.yMaximum())
 
@@ -422,7 +422,7 @@ def removePointsFromAzimut(layer, prevFeat, nextFeat, azimut, delFeatIDs):
 
     return delFeatIDs
 
-def fromLayerGetAzimut(max_flnum, azimut):
+def fromLayerGetAzimut(azimut):
     vlayer = QgsVectorLayer(r'M:\Sourcetree\bpla_plugin_flights\output\test2.shp', 'test2', 'ogr')
 
     request = QgsFeatureRequest()
@@ -475,7 +475,7 @@ if __name__ == "__main__":
     # list = getListFeatures(inShapefile, '20200905_(F9-17)wMagnCoord.shp')
 
     # timeLoop()
-    fromLayerGetAzimut(4, 90)
+    fromLayerGetAzimut(90)
 
     pass
 
