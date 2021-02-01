@@ -370,9 +370,6 @@ def timeSort(prevFeat, nextFeat):
 
 
 def azimutCalc(x1, x2):
-    # x1 = [3, 1]
-    # x2 = [1, 2]
-
     dX = x2[0]-x1[0]
     dY = x2[1]-x1[1]
     dist = math.sqrt((dX * dX) + (dY * dY))
@@ -389,22 +386,28 @@ def azimutCalc(x1, x2):
                 angle = 90 - beta
             else:
                 angle = 90 + beta
-        # print(angle)   # 296.565051177078 - 116.56505117707799 = 180
         return angle
     else:
         return 0
 
 
-def removePointsFromAzimut(layer, prevFeat, nextFeat, azimut):
+def delFeatures(layer, delFeatIDs):
+    caps = layer.dataProvider().capabilities()
+    if caps & QgsVectorDataProvider.DeleteFeatures:
+        res = layer.dataProvider().deleteFeatures(delFeatIDs)
+        # layer.updateFields()
+        # print(res)
+
+
+def removePointsFromAzimut(layer, prevFeat, nextFeat, azimut, delFeatIDs):
     angle = azimutCalc([prevFeat['LON'], prevFeat['LAT']], [nextFeat['LON'], nextFeat['LAT']])
-    accuracy = 15
+    accuracy = 5
+
     # print(angle)
     # print(azimut)
 
     # print(math.fabs(angle - azimut))
     # print(math.fabs(angle - (azimut + 180)))
-
-    caps = layer.dataProvider().capabilities()
 
     if (math.fabs(angle - azimut) < accuracy) or (math.fabs(angle - (azimut + 180)) < accuracy):
         # print(prevFeat.id(), prevFeat['FLIGHT_NUM'], prevFeat['LON'], prevFeat['LAT'])
@@ -414,31 +417,33 @@ def removePointsFromAzimut(layer, prevFeat, nextFeat, azimut):
         pass
     else:
         # remove points
-        print(prevFeat.id(), prevFeat['FLIGHT_NUM'], prevFeat['LON'], prevFeat['LAT'])
-        if caps & QgsVectorDataProvider.DeleteFeatures:
-            res = layer.dataProvider().deleteFeatures([prevFeat.id()])
-            layer.updateFields()
-            print(res)
+        # print(prevFeat.id(), prevFeat['FLIGHT_NUM'], prevFeat['LON'], prevFeat['LAT'])
+        delFeatIDs.append(prevFeat.id())
+
+    return delFeatIDs
 
 def fromLayerGetAzimut(max_flnum, azimut):
     vlayer = QgsVectorLayer(r'M:\Sourcetree\bpla_plugin_flights\output\test2.shp', 'test2', 'ogr')
 
-    request = QgsFeatureRequest().setFilterExpression('"FLIGHT_NUM" = 1')
+    request = QgsFeatureRequest()
     # request.setLimit(10)
 
     prevFeat = None
     nextFeat = None
-
+    delFeatIDs = []
     for feat in vlayer.getFeatures(request):
         if feat.id() == 0:
             prevFeat = feat
         elif feat.id() == 1:
             nextFeat = feat
-            removePointsFromAzimut(vlayer, prevFeat, nextFeat, azimut)
+            delFeatIDs = removePointsFromAzimut(vlayer, prevFeat, nextFeat, azimut, delFeatIDs)
         else:
             prevFeat = nextFeat
             nextFeat = feat
-            removePointsFromAzimut(vlayer, prevFeat, nextFeat, azimut)
+            delFeatIDs = removePointsFromAzimut(vlayer, prevFeat, nextFeat, azimut, delFeatIDs)
+
+    # print(delFeatIDs)
+    delFeatures(vlayer, delFeatIDs)
 
     # for feat in vlayer.getFeatures(request):
     #     print(feat.id(), feat['FLIGHT_NUM'], feat['LON'], feat['LAT'])
