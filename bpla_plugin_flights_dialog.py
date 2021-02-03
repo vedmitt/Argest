@@ -51,7 +51,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-        self.mMapLayerComboBox.setFilters(QgsMapLayerProxyModel.VectorLayer)
+        # self.mMapLayerComboBox.setFilters(QgsMapLayerProxyModel.VectorLayer)
         self.checkBox.setChecked(True)
         self.toolButton.clicked.connect(self.getSaveFileName)
         self.pushButton.clicked.connect(self.doResult)
@@ -322,7 +322,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             pr.changeAttributeValues({fid: attrs})
             self.newlayer.updateFields()
 
-    #####------ Azimut calc --------------
+    #--- весь алгоритм программы насчет азимутов реализуется в коде ниже ---
     def azimutCalc(self, x1, x2):
         dX = x2[0] - x1[0]
         dY = x2[1] - x1[1]
@@ -385,7 +385,6 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.textEdit.append('Количество точек в полученном слое: ' + str(self.newlayer.featureCount()))
 
         self.uploadLayer(self.filepath, self.filename, 'ogr')
-
     ##--------------END-----------------
 
     def doResult(self):
@@ -400,12 +399,19 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         # self.newlayer = QgsVectorLayer(r'M:\YandexDisk\QGIS\temp\test_pro1.shp', 'test_pro1', 'ogr')
         # self.azimutUser = 90
 
-        res = self.copyLayer()
-        self.textEdit.append(res[0])
-        if res[1] != 0:
-            self.remZeroPointsFromLayer()
-            self.setFlightNumber()
-            self.fromLayerCalcAzimut()
+        # # этот кусок кода полностью рабочий, его лучше не трогать
+        # res = self.copyLayer()
+        # self.textEdit.append(res[0])
+        # if res[1] != 0:
+        #     self.remZeroPointsFromLayer()
+        #     self.setFlightNumber()
+        #     self.fromLayerCalcAzimut()
+        ####---------------------------------
+
+        self.mMapLayerComboBox.setFilters(QgsMapLayerProxyModel.VectorLayer)
+        self.layer = self.mMapLayerComboBox.currentLayer()
+        cur_lyr_path = self.layer.dataProvider().dataSourceUri()
+        # self.textEdit.setText()
 
 
 
