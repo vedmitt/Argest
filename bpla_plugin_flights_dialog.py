@@ -70,6 +70,8 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.comboBox.clear()
         for layer in layers:
             if ((type(layer) == QgsVectorLayer) and (layer.geometryType() == 0)):
+                # setdefault добавляет элементы с проверкой на повторяющиеся
+                # если у пользователя два слоя с одиноковыми именами, в комбобокс попадет только один из них
                 self.actVecLyrDict.setdefault(layer.name(), layer)
         self.comboBox.addItems(self.actVecLyrDict.keys())
         self.comboBox.show()
