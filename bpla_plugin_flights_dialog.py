@@ -27,9 +27,13 @@ from datetime import datetime
 from time import sleep
 
 from PyQt5.QtCore import QVariant
+from PyQt5.QtGui import QIcon
 from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 from qgis.core import *
+
 
 from osgeo import ogr
 import sys
@@ -51,10 +55,24 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-        self.mMapLayerComboBox.setFilters(QgsMapLayerProxyModel.VectorLayer)
+        self.initActiveLayersComboBox()
+        self.toolButton_cbreload.setIcon(QIcon(':/plugins/bpla_plugin_flights/icon_reload.png'))
+        self.toolButton_cbreload.clicked.connect(self.initActiveLayersComboBox)
         self.checkBox.setChecked(True)
         self.toolButton.clicked.connect(self.getSaveFileName)
         self.pushButton.clicked.connect(self.doResult)
+
+
+    def initActiveLayersComboBox(self):
+        canvas = iface.mapCanvas()
+        layers = canvas.layers()
+        self.actVecLyrDict = {}
+        self.comboBox.clear()
+        for layer in layers:
+            if ((type(layer) == QgsVectorLayer) and (layer.geometryType() == 0)):
+                self.actVecLyrDict.setdefault(layer.name(), layer)
+        self.comboBox.addItems(self.actVecLyrDict.keys())
+        self.comboBox.show()
 
     def getSaveFileName(self):
         fn = QtWidgets.QFileDialog.getSaveFileName(self, 'Save file')[0]
@@ -62,7 +80,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
 
     def getLayer(self):
         # get layer from combobox
-        self.layer = self.mMapLayerComboBox.currentLayer()
+        self.layer = self.actVecLyrDict.get(self.comboBox.currentText())
         cur_lyr_path = self.layer.dataProvider().dataSourceUri()
         char_arr = cur_lyr_path.split('|')
         self.layerpath = char_arr[0]
@@ -322,7 +340,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             pr.changeAttributeValues({fid: attrs})
             self.newlayer.updateFields()
 
-    #####------ Azimut calc --------------
+    #--- весь алгоритм программы насчет азимутов реализуется в коде ниже ---
     def azimutCalc(self, x1, x2):
         dX = x2[0] - x1[0]
         dY = x2[1] - x1[1]
@@ -385,7 +403,6 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.textEdit.append('Количество точек в полученном слое: ' + str(self.newlayer.featureCount()))
 
         self.uploadLayer(self.filepath, self.filename, 'ogr')
-
     ##--------------END-----------------
 
     def doResult(self):
@@ -400,12 +417,17 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         # self.newlayer = QgsVectorLayer(r'M:\YandexDisk\QGIS\temp\test_pro1.shp', 'test_pro1', 'ogr')
         # self.azimutUser = 90
 
-        res = self.copyLayer()
-        self.textEdit.append(res[0])
-        if res[1] != 0:
-            self.remZeroPointsFromLayer()
-            self.setFlightNumber()
-            self.fromLayerCalcAzimut()
+        # # этот кусок кода полностью рабочий, его лучше не трогать
+        # res = self.copyLayer()
+        # self.textEdit.append(res[0])
+        # if res[1] != 0:
+        #     self.remZeroPointsFromLayer()
+        #     self.setFlightNumber()
+        #     self.fromLayerCalcAzimut()
+        ####---------------------------------
+
+        self.textEdit.setText(self.layerpath)
+        self.textEdit.append(self.layername)
 
 
 
