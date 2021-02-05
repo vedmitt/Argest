@@ -83,17 +83,32 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
     def getLayer(self):
         # get layer from combobox
         self.layer = self.actVecLyrDict.get(self.comboBox.currentText())
-        cur_lyr_path = self.layer.dataProvider().dataSourceUri()
-        char_arr = cur_lyr_path.split('|')
-        self.layerpath = char_arr[0]
-        self.layername = self.layer.name()
+        if self.layer is None:
+            self.textEdit.append('Слой не выбран!\n')
+        else:
+            self.layername = self.layer.name()
+            cur_lyr_path = self.layer.dataProvider().dataSourceUri()
+
+            if self.layer.dataProvider().storageType() == 'ESRI Shapefile':
+                char_arr = cur_lyr_path.split('|')
+                self.layerpath = char_arr[0]
+
+            elif self.layer.dataProvider().storageType() == 'Delimited text file':
+                fn = cur_lyr_path.split('?')
+                fn = fn[0].split('///')
+                self.layerpath = fn[1]
+                # self.textEdit.append(self.layerpath)
+
 
     def getFilepath(self):
         # get file name from line edit
-        self.filepath = self.lineEdit.text()
-        fn = os.path.basename(self.filepath)
-        fn = fn.split('.shp')
-        self.filename = fn[0]
+        if self.lineEdit.text() != '':
+            self.filepath = self.lineEdit.text()
+            fn = os.path.basename(self.filepath)
+            fn = fn.split('.shp')
+            self.filename = fn[0]
+        else:
+            self.textEdit.append("Файл для сохранения не выбран!\n")
 
     def getAzimut(self):
         self.azimutUser = self.doubleSpinBox.value()
@@ -102,7 +117,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         # show our new layer in qgis
         layer = iface.addVectorLayer(filepath, filename, typeOfFile)
         if not layer:
-            self.textEdit.append('Не удалось загрузить слой в оболочку!')
+            self.textEdit.append('Не удалось загрузить слой в оболочку!\n')
 
     # def layerToList(self):
     #     self.textEdit.append(self.layerpath)
@@ -223,40 +238,42 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
 
     def copyLayer(self):
         # copy the layer
-        self.textEdit.setText('')
         self.textEdit.append('Создаем новый слой...')
-        # self.textEdit.e
 
-        # Open the folder data source for writing
-        inds = ogr.Open(self.layerpath, 1)
+        # open an input datasource
+        driverName = self.layer.dataProvider().storageType()
+        indriver = ogr.GetDriverByName(driverName)
+        srcdb = indriver.Open(self.layer.dataProvider().dataSourceUri(), 0)
 
-        if inds is None:
-            sys.exit('Could not open folder.')
+        if srcdb is None:
+            # sys.exit('Could not open folder.')
+            return ['Произошла ошибка при создании файла!', 0]
 
         # Get the input shapefile
-        in_lyr = inds.GetLayer()
-        self.initFeatCount = in_lyr.GetFeatureCount()
-        self.textEdit.append('Количество точек в оригинальном слое: ' + str(self.initFeatCount))
+        in_lyr = srcdb.GetLayer()
 
-        # Create an output point layer
-        drv = ogr.GetDriverByName('ESRI Shapefile')
-        outds = drv.CreateDataSource(self.filepath)
+        self.textEdit.append('Количество точек в оригинальном слое: ' + str(self.layer.featureCount()))
 
-        out_lyr = outds.CopyLayer(in_lyr, self.filename)
-        del in_lyr, inds, outds
-        if out_lyr is not None:
-            # self.textEdit.append('Новый слой успешно создан!')
-            del out_lyr
+        # create an output datasource in memory
+        outdriver = ogr.GetDriverByName('MEMORY')
+        source = outdriver.CreateDataSource('memData')
+        # open the memory datasource with write access
+        tmp = outdriver.Open('memData', 1)
+
+        self.templayer = source.CopyLayer(in_lyr, 'temp_layer', ['OVERWRITE=YES'])
+
+        if self.templayer is not None:
+            self.textEdit.append('Количество точек в новом слое: ' + str(self.templayer.GetFeatureCount()))
             return ['Новый слой успешно создан!', 1]
         else:
             return ['Произошла ошибка при создании файла!', 0]
 
     def remZeroPointsFromLayer(self):
-        self.newlayer = QgsVectorLayer(self.filepath, self.filename, 'ogr')
+        self.templayer = QgsVectorLayer(self.filepath, self.filename, 'ogr')
 
         if self.checkBox.isChecked:
             self.textEdit.append('\nУдаление нулевых точек...')
-            with edit(self.newlayer):
+            with edit(self.templayer):
                 # build a request to filter the features based on an attribute
                 request = QgsFeatureRequest().setFilterExpression('"LON" = 0.0 and "LAT" = 0.0')
 
@@ -266,11 +283,11 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
                 request.setFlags(QgsFeatureRequest.NoGeometry)
 
                 # loop over the features and delete
-                for f in self.newlayer.getFeatures(request):
-                    self.newlayer.deleteFeature(f.id())
-                self.newlayer.updateFields()
+                for f in self.templayer.getFeatures(request):
+                    self.templayer.deleteFeature(f.id())
+                self.templayer.updateFields()
 
-        i = self.newlayer.featureCount()
+        i = self.templayer.featureCount()
         self.textEdit.append('Количество точек в новом слое: ' + str(i))
         self.textEdit.append('Количество точек удалено: ' + str(self.initFeatCount - i))
 
@@ -279,25 +296,25 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         # self.newlayer = QgsVectorLayer(r'M:\Sourcetree\bpla_plugin_flights\output\test1.shp', 'test1', 'ogr')
 
         # create new field with no content
-        pr = self.newlayer.dataProvider()
+        pr = self.templayer.dataProvider()
         caps = pr.capabilities()
         request = QgsFeatureRequest()
         # request.setLimit(10)
 
-        fieldNum = self.newlayer.fields().count()
+        fieldNum = self.templayer.fields().count()
         self.textEdit.append('\nНачинаем сквозную нумерацию полетов...')
         if caps & QgsVectorDataProvider.AddAttributes:
             new_field = [QgsField("FLIGHT_NUM", QVariant.Int)]
-            if new_field not in self.newlayer.fields():
+            if new_field not in self.templayer.fields():
                 pr.addAttributes(new_field)
-                self.newlayer.updateFields()
+                self.templayer.updateFields()
 
         i = 1
         boolYesNo = False
         prevFeat = None
         nextFeat = None
 
-        for feat in self.newlayer.getFeatures(request):
+        for feat in self.templayer.getFeatures(request):
             if feat.id() == 0:
                 prevFeat = feat
             elif feat.id() == 1:
@@ -311,13 +328,13 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             if (boolYesNo is False) and (nextFeat is not None):
                 # add new flight number
                 attrs = {fieldNum: i}
-                self.changeFeatValues(self.newlayer, prevFeat.id(), attrs)
-                self.changeFeatValues(self.newlayer, nextFeat.id(), attrs)
+                self.changeFeatValues(self.templayer, prevFeat.id(), attrs)
+                self.changeFeatValues(self.templayer, nextFeat.id(), attrs)
             elif nextFeat is not None:
                 i += 1
                 # add new flight number
                 attrs = {fieldNum: i}
-                self.changeFeatValues(self.newlayer, nextFeat.id(), attrs)
+                self.changeFeatValues(self.templayer, nextFeat.id(), attrs)
 
         self.textEdit.append('Полетов выделено: ' + str(i))
 
@@ -340,7 +357,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         caps = pr.capabilities()
         if caps & QgsVectorDataProvider.ChangeAttributeValues:
             pr.changeAttributeValues({fid: attrs})
-            self.newlayer.updateFields()
+            self.templayer.updateFields()
 
     #--- весь алгоритм программы насчет азимутов реализуется в коде ниже ---
     def azimutCalc(self, x1, x2):
@@ -365,9 +382,9 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             return 0
 
     def delFeatures(self, delFeatIDs):
-        caps = self.newlayer.dataProvider().capabilities()
+        caps = self.templayer.dataProvider().capabilities()
         if caps & QgsVectorDataProvider.DeleteFeatures:
-            res = self.newlayer.dataProvider().deleteFeatures(delFeatIDs)
+            res = self.templayer.dataProvider().deleteFeatures(delFeatIDs)
 
     def removePointsFromAzimut(self, prevFeat, nextFeat, delFeatIDs):
         angle = self.azimutCalc([prevFeat['LON'], prevFeat['LAT']], [nextFeat['LON'], nextFeat['LAT']])
@@ -389,7 +406,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         prevFeat = None
         nextFeat = None
         delFeatIDs = []
-        for feat in self.newlayer.getFeatures(request):
+        for feat in self.templayer.getFeatures(request):
             if feat.id() == 0:
                 prevFeat = feat
             elif feat.id() == 1:
@@ -402,12 +419,13 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
 
         self.textEdit.append('Количество удаленных точек: ' + str(len(delFeatIDs)))
         self.delFeatures(delFeatIDs)
-        self.textEdit.append('Количество точек в полученном слое: ' + str(self.newlayer.featureCount()))
+        self.textEdit.append('Количество точек в полученном слое: ' + str(self.templayer.featureCount()))
 
         self.uploadLayer(self.filepath, self.filename, 'ogr')
     ##--------------END-----------------
 
     def doResult(self):
+        self.textEdit.setText('')
         self.getLayer()
         self.getFilepath()
         self.getAzimut()
@@ -428,8 +446,17 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         #     self.fromLayerCalcAzimut()
         ####---------------------------------
 
-        self.textEdit.setText(self.layerpath)
-        self.textEdit.append(self.layername)
+        if self.layer is not None:
+            # main code here
+            # self.textEdit.append(self.layerpath)
+            # driverName = self.layer.dataProvider().storageType()
+            # self.textEdit.append(driverName)
+            # self.layer.getFeature()
+
+            res = self.copyLayer()
+            self.textEdit.append(res[0])
+            # if res[1] != 0:
+            # #     self.textEdit.append('Количество точек в новом слое: ' + str(self.templayer.GetFeatureCount()))
 
 
 
