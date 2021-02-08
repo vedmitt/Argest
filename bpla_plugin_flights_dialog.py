@@ -241,9 +241,13 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.textEdit.append('Создаем новый слой...')
 
         # open an input datasource
-        driverName = self.layer.dataProvider().storageType()
-        indriver = ogr.GetDriverByName(driverName)
-        srcdb = indriver.Open(self.layer.dataProvider().dataSourceUri(), 0)
+        # driverName = self.layer.dataProvider().storageType()
+        # indriver = ogr.GetDriverByName(driverName)
+        # srcdb = indriver.Open(self.layerpath, 0)
+
+        srcdb = ogr.Open(self.layerpath, 0)
+        # fn = os.path.split(self.layerpath)
+        # srcdb = ogr.Open(fn[0], 0)
 
         if srcdb is None:
             # sys.exit('Could not open folder.')
@@ -251,6 +255,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
 
         # Get the input shapefile
         in_lyr = srcdb.GetLayer()
+        # in_lyr = QgsVectorLayer(self.layer.dataProvider().dataSourceUri(), self.layerpath, "delimitedtext")
 
         self.textEdit.append('Количество точек в оригинальном слое: ' + str(self.layer.featureCount()))
 
@@ -448,10 +453,6 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
 
         if self.layer is not None:
             # main code here
-            # self.textEdit.append(self.layerpath)
-            # driverName = self.layer.dataProvider().storageType()
-            # self.textEdit.append(driverName)
-            # self.layer.getFeature()
 
             res = self.copyLayer()
             self.textEdit.append(res[0])
