@@ -90,10 +90,12 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             cur_lyr_path = self.layer.dataProvider().dataSourceUri()
 
             if self.layer.dataProvider().storageType() == 'ESRI Shapefile':
+                self.driverName = self.layer.dataProvider().storageType()
                 char_arr = cur_lyr_path.split('|')
                 self.layerpath = char_arr[0]
 
             elif self.layer.dataProvider().storageType() == 'Delimited text file':
+                self.driverName = 'delimitedtext'
                 fn = cur_lyr_path.split('?')
                 fn = fn[0].split('///')
                 self.layerpath = fn[1]
@@ -235,43 +237,6 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
     # #             iface.messageBar().pushMessage("Layer failed to load!", level=0)
     # #     else:
     # #         iface.messageBar().pushMessage("Something went wrong... ", error,  level=0)
-
-    def copyLayer(self):
-        # copy the layer
-        self.textEdit.append('Создаем новый слой...')
-
-        # open an input datasource
-        # driverName = self.layer.dataProvider().storageType()
-        # indriver = ogr.GetDriverByName(driverName)
-        # srcdb = indriver.Open(self.layerpath, 0)
-
-        srcdb = ogr.Open(self.layerpath, 0)
-        # fn = os.path.split(self.layerpath)
-        # srcdb = ogr.Open(fn[0], 0)
-
-        if srcdb is None:
-            # sys.exit('Could not open folder.')
-            return ['Произошла ошибка при создании файла!', 0]
-
-        # Get the input shapefile
-        in_lyr = srcdb.GetLayer()
-        # in_lyr = QgsVectorLayer(self.layer.dataProvider().dataSourceUri(), self.layerpath, "delimitedtext")
-
-        self.textEdit.append('Количество точек в оригинальном слое: ' + str(self.layer.featureCount()))
-
-        # create an output datasource in memory
-        outdriver = ogr.GetDriverByName('MEMORY')
-        source = outdriver.CreateDataSource('memData')
-        # open the memory datasource with write access
-        tmp = outdriver.Open('memData', 1)
-
-        self.templayer = source.CopyLayer(in_lyr, 'temp_layer', ['OVERWRITE=YES'])
-
-        if self.templayer is not None:
-            self.textEdit.append('Количество точек в новом слое: ' + str(self.templayer.GetFeatureCount()))
-            return ['Новый слой успешно создан!', 1]
-        else:
-            return ['Произошла ошибка при создании файла!', 0]
 
     def remZeroPointsFromLayer(self):
         self.templayer = QgsVectorLayer(self.filepath, self.filename, 'ogr')
@@ -453,11 +418,73 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
 
         if self.layer is not None:
             # main code here
+            # copy the layer
+            self.textEdit.append('Создаем новый слой...')
 
-            res = self.copyLayer()
-            self.textEdit.append(res[0])
-            # if res[1] != 0:
-            # #     self.textEdit.append('Количество точек в новом слое: ' + str(self.templayer.GetFeatureCount()))
+            # open an input datasource
+            # driverName = self.layer.dataProvider().storageType()
+            # indriver = ogr.GetDriverByName(self.driverName)
+            # inDS = indriver.Open(self.layerpath, 0)
+
+            inDS = ogr.Open(self.layerpath, 0)
+            # fn = os.path.split(self.layerpath)
+            # inDS = ogr.Open(fn[0], 0)
+
+            if inDS is None:
+                # sys.exit('Could not open folder.')
+                return ['Произошла ошибка при создании файла!', 0]
+
+            # Get the input shapefile
+            in_lyr = inDS.GetLayer()
+            # in_lyr = QgsVectorLayer(self.layer.dataProvider().dataSourceUri(), self.layerpath, "delimitedtext")
+
+            self.textEdit.append('Количество точек в оригинальном слое: ' + str(self.layer.featureCount()))
+
+            # create an output datasource in memory
+            memDriver = ogr.GetDriverByName('MEMORY')
+            outDS = memDriver.CreateDataSource('memData')
+            # open the memory datasource with write access
+            tmpDS = memDriver.Open('memData', 1)
+
+            self.templayer = outDS.CopyLayer(in_lyr, 'temp_layer', ['OVERWRITE=YES'])
+
+            # далее работаем с временным слоем
+            if self.templayer is None:
+                # outDS.SyncToDisk()
+                del inDS, tmpDS, outDS
+                self.textEdit.append('Произошла ошибка при создании файла!')
+                # return ['Произошла ошибка при создании файла!', 0]
+            else:
+                self.textEdit.append('Новый слой успешно создан!')
+                self.textEdit.append('Количество точек в новом слое: ' + str(self.templayer.GetFeatureCount()))
+
+                for i in range(self.templayer.GetFeatureCount()):
+                    feat = self.templayer.GetNextFeature()
+                    if feat is not None:
+                        geom = feat.geometry()
+                        if geom.GetX() == 0.0 and geom.GetY() == 0.0:
+                            self.templayer.DeleteFeature(feat.GetFID())
+                            inDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
+                            # self.textEdit.append(str(feat.GetField("TIME")))
+
+                self.templayer.ResetReading()
+                self.textEdit.append('Количество точек после удаления нулевых: ' + str(self.templayer.GetFeatureCount()))
+                outDS.SyncToDisk()
+
+                # основная часть плагина
+                
+
+                # сохраняем результат в шейпфайл (код рабочий)
+                fileDriver = ogr.GetDriverByName('ESRI Shapefile')
+                fileDS = fileDriver.CreateDataSource(self.filepath)
+                # open the memory datasource with write access
+                tmpDS = fileDriver.Open(self.filepath, 1)
+
+                self.newlayer = fileDS.CopyLayer(self.templayer, self.filename, ['OVERWRITE=YES'])
+                if self.newlayer is not None:
+                    self.uploadLayer(self.filepath, self.filename, 'ogr')
+
+                del inDS, tmpDS, outDS, fileDS
 
 
 
