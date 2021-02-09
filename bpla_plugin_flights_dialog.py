@@ -357,7 +357,9 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             res = self.templayer.dataProvider().deleteFeatures(delFeatIDs)
 
     def removePointsFromAzimut(self, prevFeat, nextFeat, delFeatIDs):
-        angle = self.azimutCalc([prevFeat['LON'], prevFeat['LAT']], [nextFeat['LON'], nextFeat['LAT']])
+        # geomPrev = prevFeat.geometry()
+        # geomNext = nextFeat.geometry()
+        angle = self.azimutCalc([prevFeat.GetX(), prevFeat.GetY()], [nextFeat.GetX(), nextFeat.GetY()])
         accuracy = 5
 
         if (math.fabs(angle - self.azimutUser) < accuracy) or (math.fabs(angle - (self.azimutUser + 180)) < accuracy):
@@ -458,26 +460,48 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
                 self.textEdit.append('Новый слой успешно создан!')
                 self.textEdit.append('Количество точек в новом слое: ' + str(self.templayer.GetFeatureCount()))
 
-                for i in range(self.templayer.GetFeatureCount()):
-                    feat = self.templayer.GetNextFeature()
-                    if feat is not None:
-                        geom = feat.geometry()
-                        if geom.GetX() == 0.0 and geom.GetY() == 0.0:
-                            self.templayer.DeleteFeature(feat.GetFID())
-                            inDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
-                            # self.textEdit.append(str(feat.GetField("TIME")))
+                if self.checkBox.isChecked:
+                    self.textEdit.append('\nНачинаем удаление нулевых точек...')
+                    for i in range(self.templayer.GetFeatureCount()):
+                        feat = self.templayer.GetNextFeature()
+                        if feat is not None:
+                            geom = feat.geometry()
+                            if geom.GetX() == 0.0 and geom.GetY() == 0.0:
+                                self.templayer.DeleteFeature(feat.GetFID())
+                                inDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
+                                # self.textEdit.append(str(feat.GetField("TIME")))
+                    self.templayer.ResetReading()
+                    self.textEdit.append('Количество точек после удаления нулевых: ' + str(self.templayer.GetFeatureCount()))
 
-                self.templayer.ResetReading()
-                self.textEdit.append('Количество точек после удаления нулевых: ' + str(self.templayer.GetFeatureCount()))
                 outDS.SyncToDisk()
 
                 # основная часть плагина
-                
+                self.textEdit.append('\nНачинаем удаление избыточных точек...')
+                prevFeat = None
+                nextFeat = None
+                delFeatIDs = []
+                for i in range(self.templayer.GetFeatureCount()):
+                    feat = self.templayer.GetNextFeature()
+                    if feat is not None:
+                        if feat.GetFID() == 0:
+                            prevFeat = feat
+                        elif feat.GetFID() == 1:
+                            nextFeat = feat
+                            delFeatIDs = self.removePointsFromAzimut(prevFeat.geometry(), nextFeat.geometry(), delFeatIDs)
+                        else:
+                            prevFeat = nextFeat
+                            nextFeat = feat
+                            delFeatIDs = self.removePointsFromAzimut(prevFeat.geometry(), nextFeat.geometry(), delFeatIDs)
+                self.templayer.ResetReading()
+                self.textEdit.append('Количество удаленных точек: ' + str(len(delFeatIDs)))
+                # self.delFeatures(delFeatIDs)
+                # self.templayer.DeleteFeatures(delFeatIDs)
+                # inDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
+                self.textEdit.append('Количество точек в полученном слое: ' + str(self.templayer.GetFeatureCount()))
 
                 # сохраняем результат в шейпфайл (код рабочий)
                 fileDriver = ogr.GetDriverByName('ESRI Shapefile')
                 fileDS = fileDriver.CreateDataSource(self.filepath)
-                # open the memory datasource with write access
                 tmpDS = fileDriver.Open(self.filepath, 1)
 
                 self.newlayer = fileDS.CopyLayer(self.templayer, self.filename, ['OVERWRITE=YES'])
