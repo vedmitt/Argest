@@ -356,18 +356,19 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
     #     if caps & QgsVectorDataProvider.DeleteFeatures:
     #         res = self.templayer.dataProvider().deleteFeatures(delFeatIDs)
 
-    def removePointsFromAzimut(self, prevFeat, nextFeat, delFeatIDs):
-        geomPrev = prevFeat.geometry()
-        geomNext = nextFeat.geometry()
-        angle = self.azimutCalc([geomPrev.GetX(), geomPrev.GetY()], [geomNext.GetX(), geomNext.GetY()])
-        accuracy = 5
+    # def chainsFromAzimut(self, prevFeat, nextFeat, delFeatIDs):
+    #     geomPrev = prevFeat.geometry()
+    #     geomNext = nextFeat.geometry()
+    #     accuracy = 5
+    #
+    #     angle = self.azimutCalc([geomPrev.GetX(), geomPrev.GetY()], [geomNext.GetX(), geomNext.GetY()])
+    #
+    #     if (math.fabs(angle - self.azimutUser) < accuracy) or (math.fabs(angle - (self.azimutUser + 180)) < accuracy):
+    #         pass
+    #     else:
+    #         delFeatIDs.append(prevFeat.GetFID())
+    #     return delFeatIDs
 
-        if (math.fabs(angle - self.azimutUser) < accuracy) or (math.fabs(angle - (self.azimutUser + 180)) < accuracy):
-            pass
-        else:
-            delFeatIDs.append(prevFeat.GetFID())
-
-        return delFeatIDs
 
     # def fromLayerCalcAzimut(self):
     #     self.textEdit.append('\nНачинаем удаление избыточных точек...')
@@ -444,8 +445,8 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
 
         # далее работаем с временным слоем
         if self.templayer is not None:
-            self.textEdit.append('Новый слой успешно создан!')
-            self.textEdit.append('Количество точек в новом слое: ' + str(self.templayer.GetFeatureCount()))
+            self.textEdit.append('Временный слой успешно создан!')
+            self.textEdit.append('Количество точек во временном слое: ' + str(self.templayer.GetFeatureCount()))
             #-------- удаляем нулевые точки ---------------
             if self.checkBox.isChecked:
                 self.textEdit.append('\nНачинаем удаление нулевых точек...')
@@ -472,7 +473,10 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             try:
                 prevFeat = None
                 nextFeat = None
-                delFeatIDs = []
+                accuracy = 5
+                flightPartsList = []
+                fidsList = []
+                azimutList = []
                 for i in range(self.templayer.GetFeatureCount()):
                     feat = self.templayer.GetNextFeature()
                     if feat is not None:
@@ -483,16 +487,45 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
                         else:
                             prevFeat = nextFeat
                             nextFeat = feat
+
                         if prevFeat and nextFeat is not None:
-                            delFeatIDs = self.removePointsFromAzimut(prevFeat, nextFeat, delFeatIDs)
+                            geomPrev = prevFeat.geometry()
+                            geomNext = nextFeat.geometry()
+                            azimut = self.azimutCalc([geomPrev.GetX(), geomPrev.GetY()],
+                                                     [geomNext.GetX(), geomNext.GetY()])
+                            azimutList.append(azimut)
+                            # self.textEdit.append(str(azimut))
+
+                            if len(azimutList) > 1:
+                                if math.fabs(azimutList[-2] - azimutList[-1]) < accuracy:
+                                    # self.textEdit.append("Yes!")
+                                    fidsList.append(prevFeat.GetFID())
+                                else:
+                                    # self.textEdit.append('nope')
+                                    flightPartsList.append(fidsList)
+                                    fidsList.clear()
+                                    fidsList.append(prevFeat.GetFID())
+                flightPartsList.append(fidsList)
                 self.templayer.ResetReading()
 
-                self.textEdit.append('Количество удаленных точек: ' + str(len(delFeatIDs)))
-                for i in delFeatIDs:
-                    self.templayer.DeleteFeature(i)
-                    self.inDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
-                self.templayer.ResetReading()
-                self.textEdit.append('Количество точек в полученном слое: ' + str(self.templayer.GetFeatureCount()))
+                # for azimut in azimutList:
+                #     self.textEdit.append(str(azimut))
+
+                self.textEdit.append('Количество частей полетов: ' + str(len(flightPartsList)))
+
+                # i = 0
+                for list in sorted(flightPartsList):
+                    self.textEdit.append(str(len(list)))
+                    # for item in list:
+                    #     self.textEdit.append(str(item))
+                    #     i += 1
+                    #     if i > 5:
+                    #         break
+
+                #     self.templayer.DeleteFeature(i)
+                #     self.inDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
+                # self.templayer.ResetReading()
+                # self.textEdit.append('Количество точек в полученном слое: ' + str(self.templayer.GetFeatureCount()))
             except Exception as err:
                 self.textEdit.setTextColor(QColor(255, 0, 0))
                 self.textEdit.setFontWeight(QFont.Bold)
@@ -501,19 +534,19 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             self.outDS.SyncToDisk()
 
             # -------- сохраняем результат в шейпфайл (код рабочий) ----------------------
-            try:
-                fileDriver = ogr.GetDriverByName('ESRI Shapefile')
-                fileDS = fileDriver.CreateDataSource(self.filepath)
-                tmpDS = fileDriver.Open(self.filepath, 1)
-
-                self.newlayer = fileDS.CopyLayer(self.templayer, self.filename, ['OVERWRITE=YES'])
-                if self.newlayer is not None:
-                    self.uploadLayer(self.filepath, self.filename, 'ogr')
-                del fileDS
-            except Exception as err:
-                self.textEdit.setTextColor(QColor(255, 0, 0))
-                self.textEdit.setFontWeight(QFont.Bold)
-                self.textEdit.append('\nНе удалось сохранить файл! ' + str(err))
+            # try:
+            #     fileDriver = ogr.GetDriverByName('ESRI Shapefile')
+            #     fileDS = fileDriver.CreateDataSource(self.filepath)
+            #     tmpDS = fileDriver.Open(self.filepath, 1)
+            #
+            #     self.newlayer = fileDS.CopyLayer(self.templayer, self.filename, ['OVERWRITE=YES'])
+            #     if self.newlayer is not None:
+            #         self.uploadLayer(self.filepath, self.filename, 'ogr')
+            #     del fileDS
+            # except Exception as err:
+            #     self.textEdit.setTextColor(QColor(255, 0, 0))
+            #     self.textEdit.setFontWeight(QFont.Bold)
+            #     self.textEdit.append('\nНе удалось сохранить файл! ' + str(err))
 
             del self.inDS, tmpDS, self.outDS
 
