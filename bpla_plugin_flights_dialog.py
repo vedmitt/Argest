@@ -70,6 +70,8 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.comboBox.clear()
         for layer in layers:
             if ((type(layer) == QgsVectorLayer) and (layer.geometryType() == 0)):
+                # setdefault добавляет элементы с проверкой на повторяющиеся
+                # если у пользователя два слоя с одиноковыми именами, в комбобокс попадет только один из них
                 self.actVecLyrDict.setdefault(layer.name(), layer)
         self.comboBox.addItems(self.actVecLyrDict.keys())
         self.comboBox.show()
@@ -81,17 +83,34 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
     def getLayer(self):
         # get layer from combobox
         self.layer = self.actVecLyrDict.get(self.comboBox.currentText())
-        cur_lyr_path = self.layer.dataProvider().dataSourceUri()
-        char_arr = cur_lyr_path.split('|')
-        self.layerpath = char_arr[0]
-        self.layername = self.layer.name()
+        if self.layer is None:
+            self.textEdit.append('Слой не выбран!\n')
+        else:
+            self.layername = self.layer.name()
+            cur_lyr_path = self.layer.dataProvider().dataSourceUri()
+
+            if self.layer.dataProvider().storageType() == 'ESRI Shapefile':
+                self.driverName = self.layer.dataProvider().storageType()
+                char_arr = cur_lyr_path.split('|')
+                self.layerpath = char_arr[0]
+
+            elif self.layer.dataProvider().storageType() == 'Delimited text file':
+                self.driverName = 'delimitedtext'
+                fn = cur_lyr_path.split('?')
+                fn = fn[0].split('///')
+                self.layerpath = fn[1]
+                # self.textEdit.append(self.layerpath)
+
 
     def getFilepath(self):
         # get file name from line edit
-        self.filepath = self.lineEdit.text()
-        fn = os.path.basename(self.filepath)
-        fn = fn.split('.shp')
-        self.filename = fn[0]
+        if self.lineEdit.text() != '':
+            self.filepath = self.lineEdit.text()
+            fn = os.path.basename(self.filepath)
+            fn = fn.split('.shp')
+            self.filename = fn[0]
+        else:
+            self.lineEdit.setText("Файл для сохранения не выбран!\n")
 
     def getAzimut(self):
         self.azimutUser = self.doubleSpinBox.value()
@@ -100,7 +119,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         # show our new layer in qgis
         layer = iface.addVectorLayer(filepath, filename, typeOfFile)
         if not layer:
-            self.textEdit.append('Не удалось загрузить слой в оболочку!')
+            self.textEdit.append('Не удалось загрузить слой в оболочку!\n')
 
     # def layerToList(self):
     #     self.textEdit.append(self.layerpath)
@@ -219,126 +238,96 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
     # #     else:
     # #         iface.messageBar().pushMessage("Something went wrong... ", error,  level=0)
 
-    def copyLayer(self):
-        # copy the layer
-        self.textEdit.setText('')
-        self.textEdit.append('Создаем новый слой...')
-        # self.textEdit.e
-
-        # Open the folder data source for writing
-        inds = ogr.Open(self.layerpath, 1)
-
-        if inds is None:
-            sys.exit('Could not open folder.')
-
-        # Get the input shapefile
-        in_lyr = inds.GetLayer()
-        self.initFeatCount = in_lyr.GetFeatureCount()
-        self.textEdit.append('Количество точек в оригинальном слое: ' + str(self.initFeatCount))
-
-        # Create an output point layer
-        drv = ogr.GetDriverByName('ESRI Shapefile')
-        outds = drv.CreateDataSource(self.filepath)
-
-        out_lyr = outds.CopyLayer(in_lyr, self.filename)
-        del in_lyr, inds, outds
-        if out_lyr is not None:
-            # self.textEdit.append('Новый слой успешно создан!')
-            del out_lyr
-            return ['Новый слой успешно создан!', 1]
-        else:
-            return ['Произошла ошибка при создании файла!', 0]
-
-    def remZeroPointsFromLayer(self):
-        self.newlayer = QgsVectorLayer(self.filepath, self.filename, 'ogr')
-
-        if self.checkBox.isChecked:
-            self.textEdit.append('\nУдаление нулевых точек...')
-            with edit(self.newlayer):
-                # build a request to filter the features based on an attribute
-                request = QgsFeatureRequest().setFilterExpression('"LON" = 0.0 and "LAT" = 0.0')
-
-                # we don't need attributes or geometry, skip them to minimize overhead.
-                # these lines are not strictly required but improve performance
-                request.setSubsetOfAttributes([])
-                request.setFlags(QgsFeatureRequest.NoGeometry)
-
-                # loop over the features and delete
-                for f in self.newlayer.getFeatures(request):
-                    self.newlayer.deleteFeature(f.id())
-                self.newlayer.updateFields()
-
-        i = self.newlayer.featureCount()
-        self.textEdit.append('Количество точек в новом слое: ' + str(i))
-        self.textEdit.append('Количество точек удалено: ' + str(self.initFeatCount - i))
+    # def remZeroPointsFromLayer(self):
+    #     self.templayer = QgsVectorLayer(self.filepath, self.filename, 'ogr')
+    #
+    #     if self.checkBox.isChecked:
+    #         self.textEdit.append('\nУдаление нулевых точек...')
+    #         with edit(self.templayer):
+    #             # build a request to filter the features based on an attribute
+    #             request = QgsFeatureRequest().setFilterExpression('"LON" = 0.0 and "LAT" = 0.0')
+    #
+    #             # we don't need attributes or geometry, skip them to minimize overhead.
+    #             # these lines are not strictly required but improve performance
+    #             request.setSubsetOfAttributes([])
+    #             request.setFlags(QgsFeatureRequest.NoGeometry)
+    #
+    #             # loop over the features and delete
+    #             for f in self.templayer.getFeatures(request):
+    #                 self.templayer.deleteFeature(f.id())
+    #             self.templayer.updateFields()
+    #
+    #     i = self.templayer.featureCount()
+    #     self.textEdit.append('Количество точек в новом слое: ' + str(i))
+    #     self.textEdit.append('Количество точек удалено: ' + str(self.initFeatCount - i))
 
 
-    def setFlightNumber(self):  ## working method
-        # self.newlayer = QgsVectorLayer(r'M:\Sourcetree\bpla_plugin_flights\output\test1.shp', 'test1', 'ogr')
+    # def setFlightNumber(self):  ## working method
+    #     # self.newlayer = QgsVectorLayer(r'M:\Sourcetree\bpla_plugin_flights\output\test1.shp', 'test1', 'ogr')
+    #
+    #     # create new field with no content
+    #     pr = self.templayer.dataProvider()
+    #     caps = pr.capabilities()
+    #     request = QgsFeatureRequest()
+    #     # request.setLimit(10)
+    #
+    #     fieldNum = self.templayer.fields().count()
+    #     self.textEdit.append('\nНачинаем сквозную нумерацию полетов...')
+    #     if caps & QgsVectorDataProvider.AddAttributes:
+    #         new_field = [QgsField("FLIGHT_NUM", QVariant.Int)]
+    #         if new_field not in self.templayer.fields():
+    #             pr.addAttributes(new_field)
+    #             self.templayer.updateFields()
+    #
+    #     i = 1
+    #     boolYesNo = False
+    #     prevFeat = None
+    #     nextFeat = None
+    #
+    #     for feat in self.templayer.getFeatures(request):
+    #         if feat.id() == 0:
+    #             prevFeat = feat
+    #         elif feat.id() == 1:
+    #             nextFeat = feat
+    #             boolYesNo = self.timeSort(prevFeat, nextFeat)
+    #         else:
+    #             prevFeat = nextFeat
+    #             nextFeat = feat
+    #             boolYesNo = self.timeSort(prevFeat, nextFeat)
+    #
+    #         if (boolYesNo is False) and (nextFeat is not None):
+    #             # add new flight number
+    #             attrs = {fieldNum: i}
+    #             self.changeFeatValues(self.templayer, prevFeat.id(), attrs)
+    #             self.changeFeatValues(self.templayer, nextFeat.id(), attrs)
+    #         elif nextFeat is not None:
+    #             i += 1
+    #             # add new flight number
+    #             attrs = {fieldNum: i}
+    #             self.changeFeatValues(self.templayer, nextFeat.id(), attrs)
+    #
+    #     self.textEdit.append('Полетов выделено: ' + str(i))
 
-        # create new field with no content
-        pr = self.newlayer.dataProvider()
-        caps = pr.capabilities()
-        request = QgsFeatureRequest()
-        # request.setLimit(10)
 
-        fieldNum = self.newlayer.fields().count()
-        self.textEdit.append('\nНачинаем сквозную нумерацию полетов...')
-        if caps & QgsVectorDataProvider.AddAttributes:
-            new_field = [QgsField("FLIGHT_NUM", QVariant.Int)]
-            if new_field not in self.newlayer.fields():
-                pr.addAttributes(new_field)
-                self.newlayer.updateFields()
+    # def timeSort(self, prevFeat, nextFeat):
+    #     data_format = '%m-%d-%YT%H:%M:%S,%f'
+    #
+    #     prevDataTime = datetime.strptime(prevFeat['TIME'], data_format)
+    #     nextDataTime = datetime.strptime(nextFeat['TIME'], data_format)
+    #
+    #     if nextDataTime.date() != prevDataTime.date():
+    #         return True
+    #     elif (nextDataTime.time().second - prevDataTime.time().second) > 1:
+    #         return True
+    #     else:
+    #         return False
 
-        i = 1
-        boolYesNo = False
-        prevFeat = None
-        nextFeat = None
-
-        for feat in self.newlayer.getFeatures(request):
-            if feat.id() == 0:
-                prevFeat = feat
-            elif feat.id() == 1:
-                nextFeat = feat
-                boolYesNo = self.timeSort(prevFeat, nextFeat)
-            else:
-                prevFeat = nextFeat
-                nextFeat = feat
-                boolYesNo = self.timeSort(prevFeat, nextFeat)
-
-            if (boolYesNo is False) and (nextFeat is not None):
-                # add new flight number
-                attrs = {fieldNum: i}
-                self.changeFeatValues(self.newlayer, prevFeat.id(), attrs)
-                self.changeFeatValues(self.newlayer, nextFeat.id(), attrs)
-            elif nextFeat is not None:
-                i += 1
-                # add new flight number
-                attrs = {fieldNum: i}
-                self.changeFeatValues(self.newlayer, nextFeat.id(), attrs)
-
-        self.textEdit.append('Полетов выделено: ' + str(i))
-
-
-    def timeSort(self, prevFeat, nextFeat):
-        data_format = '%m-%d-%YT%H:%M:%S,%f'
-
-        prevDataTime = datetime.strptime(prevFeat['TIME'], data_format)
-        nextDataTime = datetime.strptime(nextFeat['TIME'], data_format)
-
-        if nextDataTime.date() != prevDataTime.date():
-            return True
-        elif (nextDataTime.time().second - prevDataTime.time().second) > 1:
-            return True
-        else:
-            return False
-
-    def changeFeatValues(self, layer, fid, attrs):
-        pr = layer.dataProvider()
-        caps = pr.capabilities()
-        if caps & QgsVectorDataProvider.ChangeAttributeValues:
-            pr.changeAttributeValues({fid: attrs})
-            self.newlayer.updateFields()
+    # def changeFeatValues(self, layer, fid, attrs):
+    #     pr = layer.dataProvider()
+    #     caps = pr.capabilities()
+    #     if caps & QgsVectorDataProvider.ChangeAttributeValues:
+    #         pr.changeAttributeValues({fid: attrs})
+    #         self.templayer.updateFields()
 
     #--- весь алгоритм программы насчет азимутов реализуется в коде ниже ---
     def azimutCalc(self, x1, x2):
@@ -362,73 +351,171 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         else:
             return 0
 
-    def delFeatures(self, delFeatIDs):
-        caps = self.newlayer.dataProvider().capabilities()
-        if caps & QgsVectorDataProvider.DeleteFeatures:
-            res = self.newlayer.dataProvider().deleteFeatures(delFeatIDs)
+    # def delFeatures(self, delFeatIDs):
+    #     caps = self.templayer.dataProvider().capabilities()
+    #     if caps & QgsVectorDataProvider.DeleteFeatures:
+    #         res = self.templayer.dataProvider().deleteFeatures(delFeatIDs)
 
     def removePointsFromAzimut(self, prevFeat, nextFeat, delFeatIDs):
-        angle = self.azimutCalc([prevFeat['LON'], prevFeat['LAT']], [nextFeat['LON'], nextFeat['LAT']])
+        geomPrev = prevFeat.geometry()
+        geomNext = nextFeat.geometry()
+        angle = self.azimutCalc([geomPrev.GetX(), geomPrev.GetY()], [geomNext.GetX(), geomNext.GetY()])
         accuracy = 5
 
         if (math.fabs(angle - self.azimutUser) < accuracy) or (math.fabs(angle - (self.azimutUser + 180)) < accuracy):
             pass
         else:
-            delFeatIDs.append(prevFeat.id())
+            delFeatIDs.append(prevFeat.GetFID())
 
         return delFeatIDs
 
-    def fromLayerCalcAzimut(self):
-        self.textEdit.append('\nНачинаем удаление избыточных точек...')
-
-        request = QgsFeatureRequest()
-        # request.setLimit(10)
-
-        prevFeat = None
-        nextFeat = None
-        delFeatIDs = []
-        for feat in self.newlayer.getFeatures(request):
-            if feat.id() == 0:
-                prevFeat = feat
-            elif feat.id() == 1:
-                nextFeat = feat
-                delFeatIDs = self.removePointsFromAzimut(prevFeat, nextFeat, delFeatIDs)
-            else:
-                prevFeat = nextFeat
-                nextFeat = feat
-                delFeatIDs = self.removePointsFromAzimut(prevFeat, nextFeat, delFeatIDs)
-
-        self.textEdit.append('Количество удаленных точек: ' + str(len(delFeatIDs)))
-        self.delFeatures(delFeatIDs)
-        self.textEdit.append('Количество точек в полученном слое: ' + str(self.newlayer.featureCount()))
-
-        self.uploadLayer(self.filepath, self.filename, 'ogr')
+    # def fromLayerCalcAzimut(self):
+    #     self.textEdit.append('\nНачинаем удаление избыточных точек...')
+    #
+    #     request = QgsFeatureRequest()
+    #     # request.setLimit(10)
+    #
+    #     prevFeat = None
+    #     nextFeat = None
+    #     delFeatIDs = []
+    #     for feat in self.templayer.getFeatures(request):
+    #         if feat.id() == 0:
+    #             prevFeat = feat
+    #         elif feat.id() == 1:
+    #             nextFeat = feat
+    #             delFeatIDs = self.removePointsFromAzimut(prevFeat, nextFeat, delFeatIDs)
+    #         else:
+    #             prevFeat = nextFeat
+    #             nextFeat = feat
+    #             delFeatIDs = self.removePointsFromAzimut(prevFeat, nextFeat, delFeatIDs)
+    #
+    #     self.textEdit.append('Количество удаленных точек: ' + str(len(delFeatIDs)))
+    #     self.delFeatures(delFeatIDs)
+    #     self.textEdit.append('Количество точек в полученном слое: ' + str(self.templayer.featureCount()))
+    #
+    #     self.uploadLayer(self.filepath, self.filename, 'ogr')
     ##--------------END-----------------
 
     def doResult(self):
+        global inDS
+        self.textEdit.setTextColor(QColor(0, 0, 0))
+        self.textEdit.setFontWeight(1)
+        self.textEdit.setText('')
+
         self.getLayer()
         self.getFilepath()
         self.getAzimut()
 
-        # self.layerToList()
-        # self.removeZeroFeatures()
-        # self.listToShapefile()
+        try:
+            self.textEdit.append('Создаем новый слой...')
 
-        # self.newlayer = QgsVectorLayer(r'M:\YandexDisk\QGIS\temp\test_pro1.shp', 'test_pro1', 'ogr')
-        # self.azimutUser = 90
+            # open an input datasource
+            # driverName = self.layer.dataProvider().storageType()
+            # indriver = ogr.GetDriverByName(self.driverName)
+            # inDS = indriver.Open(self.layerpath, 0)
 
-        # # этот кусок кода полностью рабочий, его лучше не трогать
-        # res = self.copyLayer()
-        # self.textEdit.append(res[0])
-        # if res[1] != 0:
-        #     self.remZeroPointsFromLayer()
-        #     self.setFlightNumber()
-        #     self.fromLayerCalcAzimut()
-        ####---------------------------------
+            self.inDS = ogr.Open(self.layerpath, 0)
+            # fn = os.path.split(self.layerpath)
+            # inDS = ogr.Open(fn[0], 0)
 
-        self.textEdit.setText(self.layerpath)
-        self.textEdit.append(self.layername)
+            # if inDS is None:  # добавить обработчик исключений
+            #     # sys.exit('Could not open folder.')
+            #     self.textEdit.append('Произошла ошибка при создании файла!')
+            #     # return ['Произошла ошибка при создании файла!', 0]
 
+            # Get the input shapefile
+            in_lyr = self.inDS.GetLayer()
+            # in_lyr = QgsVectorLayer(self.layer.dataProvider().dataSourceUri(), self.layerpath, "delimitedtext")
+
+            self.textEdit.append('Количество точек в оригинальном слое: ' + str(self.layer.featureCount()))
+
+            # create an output datasource in memory
+            memDriver = ogr.GetDriverByName('MEMORY')
+            self.outDS = memDriver.CreateDataSource('memData')
+            # open the memory datasource with write access
+            tmpDS = memDriver.Open('memData', 1)
+
+            self.templayer = self.outDS.CopyLayer(in_lyr, 'temp_layer', ['OVERWRITE=YES'])
+
+        except Exception as err:
+            self.textEdit.setTextColor(QColor(255, 0, 0))
+            self.textEdit.setFontWeight(QFont.Bold)
+            self.textEdit.append('\nНе удалось создать временный слой! ' + str(err))
+
+        # далее работаем с временным слоем
+        if self.templayer is not None:
+            self.textEdit.append('Новый слой успешно создан!')
+            self.textEdit.append('Количество точек в новом слое: ' + str(self.templayer.GetFeatureCount()))
+            #-------- удаляем нулевые точки ---------------
+            if self.checkBox.isChecked:
+                self.textEdit.append('\nНачинаем удаление нулевых точек...')
+                try:
+                    for i in range(self.templayer.GetFeatureCount()):
+                        feat = self.templayer.GetNextFeature()
+                        if feat is not None:
+                            geom = feat.geometry()
+                            if geom.GetX() == 0.0 and geom.GetY() == 0.0:
+                                self.templayer.DeleteFeature(feat.GetFID())
+                                self.inDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
+                                # self.textEdit.append(str(feat.GetField("TIME")))
+                    self.templayer.ResetReading()
+                    self.textEdit.append('Количество точек после удаления нулевых: ' + str(self.templayer.GetFeatureCount()))
+                except Exception as err:
+                    self.textEdit.setTextColor(QColor(255, 0, 0))
+                    self.textEdit.setFontWeight(QFont.Bold)
+                    self.textEdit.append('\nНе удалось удалить нулевые точки! ' + str(err))
+
+            self.outDS.SyncToDisk()
+
+            #------ основная часть плагина -------------------------
+            self.textEdit.append('\nНачинаем удаление избыточных точек...')
+            try:
+                prevFeat = None
+                nextFeat = None
+                delFeatIDs = []
+                for i in range(self.templayer.GetFeatureCount()):
+                    feat = self.templayer.GetNextFeature()
+                    if feat is not None:
+                        if feat.GetFID() == 0:
+                            prevFeat = feat
+                        elif feat.GetFID() == 1:
+                            nextFeat = feat
+                        else:
+                            prevFeat = nextFeat
+                            nextFeat = feat
+                        if prevFeat and nextFeat is not None:
+                            delFeatIDs = self.removePointsFromAzimut(prevFeat, nextFeat, delFeatIDs)
+                self.templayer.ResetReading()
+
+                self.textEdit.append('Количество удаленных точек: ' + str(len(delFeatIDs)))
+                for i in delFeatIDs:
+                    self.templayer.DeleteFeature(i)
+                    self.inDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
+                self.templayer.ResetReading()
+                self.textEdit.append('Количество точек в полученном слое: ' + str(self.templayer.GetFeatureCount()))
+            except Exception as err:
+                self.textEdit.setTextColor(QColor(255, 0, 0))
+                self.textEdit.setFontWeight(QFont.Bold)
+                self.textEdit.append('\nНе удалось удалить избыточные точки! ' + str(err))
+
+            self.outDS.SyncToDisk()
+
+            # -------- сохраняем результат в шейпфайл (код рабочий) ----------------------
+            try:
+                fileDriver = ogr.GetDriverByName('ESRI Shapefile')
+                fileDS = fileDriver.CreateDataSource(self.filepath)
+                tmpDS = fileDriver.Open(self.filepath, 1)
+
+                self.newlayer = fileDS.CopyLayer(self.templayer, self.filename, ['OVERWRITE=YES'])
+                if self.newlayer is not None:
+                    self.uploadLayer(self.filepath, self.filename, 'ogr')
+                del fileDS
+            except Exception as err:
+                self.textEdit.setTextColor(QColor(255, 0, 0))
+                self.textEdit.setFontWeight(QFont.Bold)
+                self.textEdit.append('\nНе удалось сохранить файл! ' + str(err))
+
+            del self.inDS, tmpDS, self.outDS
 
 
 

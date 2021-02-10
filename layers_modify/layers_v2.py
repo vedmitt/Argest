@@ -21,4 +21,31 @@ import sys
 
 
 if __name__ == "__main__":
-    pass
+    # layer = QgsVectorLayer(r'M:\Sourcetree\bpla_plugin_flights\output\test_f1f8.shp', 'test_f1f8', 'ogr')
+    # layer = QgsVectorLayer(r'M:\YandexDisk\QGIS\my_data_source\20200905_(F1-8)wMagnCoord.txt', '20200905_(F1-8)wMagnCoord', 'ogr')
+    #
+    # print(layer.dataProvider().storageType())
+    # print(layer.metadataUri())
+    # print(layer.dataProvider().dataSourceUri())
+    # print(layer.dataUrl())
+
+    # str = 'file:///M:/YandexDisk/QGIS/my_data_source/20200905_(F25-27)wMagnCoord.txt?type=csv&delimiter=%5Ct&detectTypes=yes&xField=LON&yField=LAT&crs=EPSG:4326&spatialIndex=no&subsetIndex=no&watchFile=no'
+    # fn = str.split('?')
+    # fn = fn[0].split('///')
+    # print(fn[1])
+    # fn = os.path.split(fn[1])
+    # print(fn[0])
+
+    cnt = ogr.GetDriverCount()
+    formatsList = []  # Empty List
+
+    for i in range(cnt):
+        driver = ogr.GetDriver(i)
+        driverName = driver.GetName()
+        if not driverName in formatsList:
+            formatsList.append(driverName)
+
+    formatsList.sort()  # Sorting the messy list of ogr drivers
+
+    for i in formatsList:
+        print(i)
