@@ -34,7 +34,6 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from qgis.core import *
 
-
 from osgeo import ogr
 import sys
 
@@ -61,7 +60,6 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.checkBox.setChecked(True)
         self.toolButton.clicked.connect(self.getSaveFileName)
         self.pushButton.clicked.connect(self.doResult)
-
 
     def initActiveLayersComboBox(self):
         canvas = iface.mapCanvas()
@@ -100,7 +98,6 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
                 fn = fn[0].split('///')
                 self.layerpath = fn[1]
                 # self.textEdit.append(self.layerpath)
-
 
     def getFilepath(self):
         # get file name from line edit
@@ -261,7 +258,6 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
     #     self.textEdit.append('Количество точек в новом слое: ' + str(i))
     #     self.textEdit.append('Количество точек удалено: ' + str(self.initFeatCount - i))
 
-
     # def setFlightNumber(self):  ## working method
     #     # self.newlayer = QgsVectorLayer(r'M:\Sourcetree\bpla_plugin_flights\output\test1.shp', 'test1', 'ogr')
     #
@@ -308,7 +304,6 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
     #
     #     self.textEdit.append('Полетов выделено: ' + str(i))
 
-
     # def timeSort(self, prevFeat, nextFeat):
     #     data_format = '%m-%d-%YT%H:%M:%S,%f'
     #
@@ -329,7 +324,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
     #         pr.changeAttributeValues({fid: attrs})
     #         self.templayer.updateFields()
 
-    #--- весь алгоритм программы насчет азимутов реализуется в коде ниже ---
+    # --- весь алгоритм программы насчет азимутов реализуется в коде ниже ---
     def azimutCalc(self, x1, x2):
         dX = x2[0] - x1[0]
         dY = x2[1] - x1[1]
@@ -368,7 +363,6 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
     #     else:
     #         delFeatIDs.append(prevFeat.GetFID())
     #     return delFeatIDs
-
 
     # def fromLayerCalcAzimut(self):
     #     self.textEdit.append('\nНачинаем удаление избыточных точек...')
@@ -447,7 +441,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         if self.templayer is not None:
             self.textEdit.append('Временный слой успешно создан!')
             self.textEdit.append('Количество точек во временном слое: ' + str(self.templayer.GetFeatureCount()))
-            #-------- удаляем нулевые точки ---------------
+            # -------- удаляем нулевые точки ---------------
             if self.checkBox.isChecked:
                 self.textEdit.append('\nНачинаем удаление нулевых точек...')
                 try:
@@ -460,7 +454,8 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
                                 self.inDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
                                 # self.textEdit.append(str(feat.GetField("TIME")))
                     self.templayer.ResetReading()
-                    self.textEdit.append('Количество точек после удаления нулевых: ' + str(self.templayer.GetFeatureCount()))
+                    self.textEdit.append(
+                        'Количество точек после удаления нулевых: ' + str(self.templayer.GetFeatureCount()))
                 except Exception as err:
                     self.textEdit.setTextColor(QColor(255, 0, 0))
                     self.textEdit.setFontWeight(QFont.Bold)
@@ -468,64 +463,69 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
 
             self.outDS.SyncToDisk()
 
-            #------ основная часть плагина -------------------------
+            # ------ основная часть плагина -------------------------
             self.textEdit.append('\nНачинаем удаление избыточных точек...')
             try:
-                prevFeat = None
-                nextFeat = None
+                featsList = []
+                for i in range(self.templayer.GetFeatureCount()):
+                    feat = self.templayer.GetNextFeature()
+                    featsList.append(feat)
+                self.templayer.ResetReading()
+
+                # отсортируем список по fid
+                featsList = sorted(featsList, key=lambda feature: feature.GetFID(), reverse=False)
+
+                # for i in featsList:
+                #     self.textEdit.append(str(i.GetFID()))
+
                 accuracy = 5
                 flightPartsList = []
                 fidsList = []
-                azimutList = []
-                for i in range(self.templayer.GetFeatureCount()):
-                    feat = self.templayer.GetNextFeature()
-                    if feat is not None:
-                        if feat.GetFID() == 0:
-                            prevFeat = feat
-                        elif feat.GetFID() == 1:
-                            nextFeat = feat
-                        else:
-                            prevFeat = nextFeat
-                            nextFeat = feat
+                i = 0
+                while i + 2 < len(featsList):
+                    azimut_1 = self.azimutCalc([featsList[i].geometry().GetX(), featsList[i].geometry().GetY()],
+                                               [featsList[i + 1].geometry().GetX(), featsList[i + 1].geometry().GetY()])
+                    azimut_2 = self.azimutCalc([featsList[i + 1].geometry().GetX(), featsList[i + 1].geometry().GetY()],
+                                               [featsList[i + 2].geometry().GetX(), featsList[i + 2].geometry().GetY()])
 
-                        if prevFeat and nextFeat is not None:
-                            geomPrev = prevFeat.geometry()
-                            geomNext = nextFeat.geometry()
-                            azimut = self.azimutCalc([geomPrev.GetX(), geomPrev.GetY()],
-                                                     [geomNext.GetX(), geomNext.GetY()])
-                            azimutList.append(azimut)
-                            # self.textEdit.append(str(azimut))
+                    # self.textEdit.append(str(azimut_1) + ' ' + str(azimut_2))
 
-                            if len(azimutList) > 1:
-                                if math.fabs(azimutList[-2] - azimutList[-1]) < accuracy:
-                                    # self.textEdit.append("Yes!")
-                                    fidsList.append(prevFeat.GetFID())
-                                else:
-                                    # self.textEdit.append('nope')
-                                    flightPartsList.append(fidsList)
-                                    fidsList.clear()
-                                    fidsList.append(prevFeat.GetFID())
-                flightPartsList.append(fidsList)
-                self.templayer.ResetReading()
+                    if math.fabs(azimut_1 - azimut_2) < accuracy:
+                        # self.textEdit.append('Yes!')
+                        fidsList.append(featsList[i].GetFID())
+                        # self.textEdit.append(str(fidsList))
 
-                # for azimut in azimutList:
-                #     self.textEdit.append(str(azimut))
+                    else:
+                        # self.textEdit.append('nope')
+                        if fidsList is not None:
+                            flightPartsList.append(fidsList)
+                        fidsList = [featsList[i].GetFID()]
+                        # self.textEdit.append(str(fidsList))
+                    i += 1
+
+                # if fidsList is not None and i == len(featsList)-1:
+                #     fidsList.append(featsList[i+1].GetFID())
+                #     fidsList.append(featsList[i+2].GetFID())
+                #     flightPartsList.append(fidsList)
+
+                # self.textEdit.append(str(flightPartsList))
 
                 self.textEdit.append('Количество частей полетов: ' + str(len(flightPartsList)))
 
-                # i = 0
-                for list in sorted(flightPartsList):
-                    self.textEdit.append(str(len(list)))
-                    # for item in list:
-                    #     self.textEdit.append(str(item))
-                    #     i += 1
-                    #     if i > 5:
-                    #         break
+                longest_list = max(len(elem) for elem in flightPartsList)
+                self.textEdit.append('Самый длинный полет: ' + str(longest_list))
+                shortest_list = min(len(elem) for elem in flightPartsList)
+                self.textEdit.append('Самый короткий полет: ' + str(shortest_list))
 
-                #     self.templayer.DeleteFeature(i)
-                #     self.inDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
-                # self.templayer.ResetReading()
-                # self.textEdit.append('Количество точек в полученном слое: ' + str(self.templayer.GetFeatureCount()))
+                # анализируем длины полетов и удаляем точки
+                for list in flightPartsList:
+                    if len(list) < longest_list/10:
+                        for fid in list:
+                            self.templayer.DeleteFeature(fid)
+                            self.inDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
+                self.templayer.ResetReading()
+                self.textEdit.append('\nКоличество точек в полученном слое: ' + str(self.templayer.GetFeatureCount()))
+
             except Exception as err:
                 self.textEdit.setTextColor(QColor(255, 0, 0))
                 self.textEdit.setFontWeight(QFont.Bold)
@@ -534,21 +534,18 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             self.outDS.SyncToDisk()
 
             # -------- сохраняем результат в шейпфайл (код рабочий) ----------------------
-            # try:
-            #     fileDriver = ogr.GetDriverByName('ESRI Shapefile')
-            #     fileDS = fileDriver.CreateDataSource(self.filepath)
-            #     tmpDS = fileDriver.Open(self.filepath, 1)
-            #
-            #     self.newlayer = fileDS.CopyLayer(self.templayer, self.filename, ['OVERWRITE=YES'])
-            #     if self.newlayer is not None:
-            #         self.uploadLayer(self.filepath, self.filename, 'ogr')
-            #     del fileDS
-            # except Exception as err:
-            #     self.textEdit.setTextColor(QColor(255, 0, 0))
-            #     self.textEdit.setFontWeight(QFont.Bold)
-            #     self.textEdit.append('\nНе удалось сохранить файл! ' + str(err))
+            try:
+                fileDriver = ogr.GetDriverByName('ESRI Shapefile')
+                fileDS = fileDriver.CreateDataSource(self.filepath)
+                tmpDS = fileDriver.Open(self.filepath, 1)
+
+                self.newlayer = fileDS.CopyLayer(self.templayer, self.filename, ['OVERWRITE=YES'])
+                if self.newlayer is not None:
+                    self.uploadLayer(self.filepath, self.filename, 'ogr')
+                del fileDS
+            except Exception as err:
+                self.textEdit.setTextColor(QColor(255, 0, 0))
+                self.textEdit.setFontWeight(QFont.Bold)
+                self.textEdit.append('\nНе удалось сохранить файл! ' + str(err))
 
             del self.inDS, tmpDS, self.outDS
-
-
-

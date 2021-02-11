@@ -36,16 +36,34 @@ if __name__ == "__main__":
     # fn = os.path.split(fn[1])
     # print(fn[0])
 
-    cnt = ogr.GetDriverCount()
-    formatsList = []  # Empty List
+    # cnt = ogr.GetDriverCount()
+    # formatsList = []  # Empty List
+    #
+    # for i in range(cnt):
+    #     driver = ogr.GetDriver(i)
+    #     driverName = driver.GetName()
+    #     if not driverName in formatsList:
+    #         formatsList.append(driverName)
+    #
+    # formatsList.sort()  # Sorting the messy list of ogr drivers
+    #
+    # for i in formatsList:
+    #     print(i)
 
-    for i in range(cnt):
-        driver = ogr.GetDriver(i)
-        driverName = driver.GetName()
-        if not driverName in formatsList:
-            formatsList.append(driverName)
+    list1 = [0, 2, 3, 5, 6, 7]
+    list2 = [5, 6, 7, 8]
+    list3 = [5, 10, 58, 29]
+    list4 = [10, 20]
+    list5 = [4]
+    biglist = [list1, list2, list3, list4, list5]
 
-    formatsList.sort()  # Sorting the messy list of ogr drivers
+    # print(max(biglist))
+    longest_list = max(len(elem) for elem in biglist)
+    print(longest_list)
+    shortest_list = min(len(elem) for elem in biglist)
+    print(shortest_list)
 
-    for i in formatsList:
-        print(i)
+    biglist.clear()
+    print(biglist)
+    biglist.append([0])
+    print(biglist)
