@@ -1,3 +1,4 @@
+import csv
 import math
 from datetime import datetime
 
@@ -8,7 +9,8 @@ from qgis.core import (
     QgsFeatureRequest, QgsVectorDataProvider,
 )
 from qgis.PyQt.QtCore import QVariant
-from osgeo import ogr
+import osgeo.ogr as ogr
+import osgeo.osr as osr
 import os
 import sys
 
@@ -87,7 +89,8 @@ def testAlgorithm():
             templayer.ResetReading()
 
             # отсортируем список по fid
-            feat_list = sorted(feat_list, key=lambda feature: feature.GetFID(), reverse=False)
+            # feat_list = sorted(feat_list, key=lambda feature: feature.GetFID(), reverse=False)
+            feat_list = sorted(feat_list, key=lambda feature: feature.GetField("TIME"), reverse=False)
 
             accuracy = 10
             partsFlightList = []
@@ -164,83 +167,66 @@ def testAlgorithm():
         del inDS, tmpDS, outDS
 
 def txtFilesTest():
-    layerpath = r'M:\Sourcetree\bpla_plugin_flights\input_data\20200905_(F1-8)wMagnCoord.txt'
-    layername = '20200905_(F1-8)wMagnCoord'
-    # layer = QgsVectorLayer(layerpath, layername, 'ogr')
-    # in_lyr = QgsVectorLayer(layer.dataProvider().dataSourceUri(), layerpath, "delimitedtext")
+    # Parse a delimited text file of volcano data and create a shapefile
+    # use a dictionary reader so we can access by field name
+    reader = csv.DictReader(open(r'M:\Sourcetree\bpla_plugin_flights\input_data\20200905_(F1-8)wMagnCoord.txt', "rt",
+                                 encoding="utf8"),
+                            delimiter='\t',
+                            quoting=csv.QUOTE_NONE)
 
-    # # open an input datasource
-    # driverName = layer.dataProvider().storageType()
-    # print(driverName)
-    # inDriver = ogr.GetDriverByName(driverName)
-    # inDS = inDriver.Open(layerpath, 0)
+    # set up the shapefile driver
+    driver = ogr.GetDriverByName('MEMORY')
 
-    inDS = ogr.Open(layerpath, 0)
-    # fn = os.path.split(layerpath)
-    # inDS = ogr.Open(fn[0], 0)
+    # create the data source
+    data_source = driver.CreateDataSource('memData')
 
-    # if inDS is None:  # добавить обработчик исключений
-    #     # sys.exit('Could not open folder.')
-    #     textEdit.append('Произошла ошибка при создании файла!')
-    #     # return ['Произошла ошибка при создании файла!', 0]
+    # create the spatial reference, WGS84
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
 
-    # Get the input shapefile
-    in_lyr = inDS.GetLayer()
-    # in_lyr = QgsVectorLayer(layer.dataProvider().dataSourceUri(), layerpath, "delimitedtext")
+    # create the layer
+    layer = data_source.CreateLayer("temp_layer", srs, ogr.wkbPoint)
 
-    # create an output datasource in memory
-    memDriver = ogr.GetDriverByName('MEMORY')
-    outDS = memDriver.CreateDataSource('memData')
-    # open the memory datasource with write access
-    tmpDS = memDriver.Open('memData', 1)
+    # Add the all fields
+    for field in reader.fieldnames:
+        layer.CreateField(ogr.FieldDefn(field, ogr.OFTString))
+    #
+    # Process the text file and add the attributes and features to the shapefile
+    for row in reader:
+        # create the feature
+        feature = ogr.Feature(layer.GetLayerDefn())
+        # Set the attributes using the values from the delimited text file
+        for item in row.keys():
+            feature.SetField(item, row[item])
 
-    templayer = outDS.CopyLayer(in_lyr, 'temp_layer', ['OVERWRITE=YES'])
+        # create the WKT for the feature using Python string formatting
+        wkt = "POINT(%f %f)" % (float(row['LON']), float(row['LAT']))
+
+        # Create the point from the Well Known Txt
+        point = ogr.CreateGeometryFromWkt(wkt)
+
+        # Set the feature geometry using the point
+        feature.SetGeometry(point)
+        # Create the feature in the layer (shapefile)
+        layer.CreateFeature(feature)
+        # Dereference the feature
+        feature = None
+
+    # feat_list = []
+    # for i in range(layer.GetFeatureCount()):
+    #     feat = layer.GetNextFeature()
+    #     feat_list.append(feat)
+    # layer.ResetReading()
+    #
+    # # отсортируем список по fid
+    # # feat_list = sorted(feat_list, key=lambda feature: feature.GetFID(), reverse=False)
+    # feat_list = sorted(feat_list, key=lambda feature: feature.GetField("TIME"), reverse=False)
+    #
+    # for i in feat_list:
+    #     print(i.GetField('TIME'))
+
+    # Save and close the data source
+    data_source = None
 
 if __name__ == "__main__":
-    # layer = QgsVectorLayer(r'M:\Sourcetree\bpla_plugin_flights\output\test_f1f8.shp', 'test_f1f8', 'ogr')
-    # layer = QgsVectorLayer(r'M:\YandexDisk\QGIS\my_data_source\20200905_(F1-8)wMagnCoord.txt', '20200905_(F1-8)wMagnCoord', 'ogr')
-    #
-    # print(layer.dataProvider().storageType())
-    # print(layer.metadataUri())
-    # print(layer.dataProvider().dataSourceUri())
-    # print(layer.dataUrl())
-
-    # str = 'file:///M:/YandexDisk/QGIS/my_data_source/20200905_(F25-27)wMagnCoord.txt?type=csv&delimiter=%5Ct&detectTypes=yes&xField=LON&yField=LAT&crs=EPSG:4326&spatialIndex=no&subsetIndex=no&watchFile=no'
-    # fn = str.split('?')
-    # fn = fn[0].split('///')
-    # print(fn[1])
-    # fn = os.path.split(fn[1])
-    # print(fn[0])
-
-    # cnt = ogr.GetDriverCount()
-    # formatsList = []  # Empty List
-    #
-    # for i in range(cnt):
-    #     driver = ogr.GetDriver(i)
-    #     driverName = driver.GetName()
-    #     if not driverName in formatsList:
-    #         formatsList.append(driverName)
-    #
-    # formatsList.sort()  # Sorting the messy list of ogr drivers
-    #
-    # for i in formatsList:
-    #     print(i)
-    # testAlgorithm()
-
     txtFilesTest()
-
-    # list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-    # print(len(list))
-    #
-    # new_list = []
-    # i = 0
-    # while i + 2 < len(list):
-    #     new_list.append(list[i])
-    #     i += 1
-    # print(new_list)
-    # print(i)
-    #
-    # new_list.append(i)
-    # new_list.append(i+1)
-    # print(new_list)
-

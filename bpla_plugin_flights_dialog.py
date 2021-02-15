@@ -21,9 +21,11 @@
  *                                                                         *
  ***************************************************************************/
 """
+import csv
 import math
 import os
 from datetime import datetime
+from random import random, randint
 
 from PyQt5.QtCore import QVariant
 from PyQt5.QtGui import QIcon
@@ -32,7 +34,7 @@ from qgis.PyQt import QtWidgets
 from PyQt5.QtGui import *
 from qgis.core import *
 
-from osgeo import ogr
+from osgeo import ogr, osr
 import sys
 
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
@@ -107,6 +109,12 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         else:
             self.lineEdit.setText("Файл для сохранения не выбран!\n")
 
+    def setNewFileName(self, new_name):
+        fn = os.path.dirname(self.filepath)
+        self.filename = new_name
+        new_name = '/' + new_name + '.shp'
+        self.filepath = fn + new_name
+
     def setTextStyle(self, color, weight):
         colors = {
             'black': QColor(0, 0, 0),
@@ -126,34 +134,73 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         if not layer:
             self.textEdit.append('Не удалось загрузить слой в оболочку!\n')
 
+    def csvToMemory(self):
+        try:
+            self.textEdit.append('Создаем новый слой...')
+
+            # Parse a delimited text file of volcano data and create a shapefile
+            # use a dictionary reader so we can access by field name
+            reader = csv.DictReader(
+                open(self.layerpath, "rt",
+                     encoding="utf8"),
+                delimiter='\t',
+                quoting=csv.QUOTE_NONE)
+
+            # set up the shapefile driver
+            driver = ogr.GetDriverByName('MEMORY')
+
+            # create the data source
+            self.inDS = driver.CreateDataSource('memData')
+
+            # create the spatial reference, WGS84
+            srs = osr.SpatialReference()
+            srs.ImportFromEPSG(4326)
+
+            # create the layer
+            self.templayer = self.inDS.CreateLayer("temp_layer", srs, ogr.wkbPoint)
+
+            # Add the all fields
+            for field in reader.fieldnames:
+                self.templayer.CreateField(ogr.FieldDefn(field, ogr.OFTString))
+            #
+            # Process the text file and add the attributes and features to the shapefile
+            for row in reader:
+                # create the feature
+                feature = ogr.Feature(self.templayer.GetLayerDefn())
+                # Set the attributes using the values from the delimited text file
+                for item in row.keys():
+                    feature.SetField(item, row[item])
+
+                # create the WKT for the feature using Python string formatting
+                wkt = "POINT(%f %f)" % (float(row['LON']), float(row['LAT']))
+
+                # Create the point from the Well Known Txt
+                point = ogr.CreateGeometryFromWkt(wkt)
+
+                # Set the feature geometry using the point
+                feature.SetGeometry(point)
+                # Create the feature in the layer (shapefile)
+                self.templayer.CreateFeature(feature)
+
+        except Exception as err:
+            self.setTextStyle('red', 'bold')
+            self.textEdit.append('\nНе удалось создать временный слой! ' + str(err))
+
     def layerToMemory(self):
         try:
             self.textEdit.append('Создаем новый слой...')
 
-            # # open an input datasource
-            # # driverName = self.layer.dataProvider().storageType()
             inDriver = ogr.GetDriverByName(self.driverName)
             self.inDS = inDriver.Open(self.layerpath, 0)
 
-            # self.inDS = ogr.Open(self.layerpath, 0)
-            # fn = os.path.split(self.layerpath)
-            # inDS = ogr.Open(fn[0], 0)
-
-            # if inDS is None:  # добавить обработчик исключений
-            #     # sys.exit('Could not open folder.')
-            #     self.textEdit.append('Произошла ошибка при создании файла!')
-            #     # return ['Произошла ошибка при создании файла!', 0]
-
             # Get the input shapefile
             in_lyr = self.inDS.GetLayer()
-            # in_lyr = QgsVectorLayer(self.layer.dataProvider().dataSourceUri(), self.layerpath, "delimitedtext")
 
             self.textEdit.append('Количество точек в оригинальном слое: ' + str(self.layer.featureCount()))
 
             # create an output datasource in memory
             memDriver = ogr.GetDriverByName('MEMORY')
             self.outDS = memDriver.CreateDataSource('memData')
-            # open the memory datasource with write access
             self.tmpDS = memDriver.Open('memData', 1)
 
             self.templayer = self.outDS.CopyLayer(in_lyr, 'temp_layer', ['OVERWRITE=YES'])
@@ -197,6 +244,13 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         # -------- сохраняем результат в шейпфайл (код рабочий) ----------------------
         try:
             fileDriver = ogr.GetDriverByName('ESRI Shapefile')
+
+            # создаем файл с другим именем, если этот уже существует
+            i = next((elem for elem in iface.mapCanvas().layers() if elem.name() == self.filename), None)
+            if i is not None:
+                new_name = self.filename + '_' + str(randint(10000, 99999))
+                self.setNewFileName(new_name)
+
             fileDS = fileDriver.CreateDataSource(self.filepath)
             newDS = fileDriver.Open(self.filepath, 1)
 
@@ -245,12 +299,13 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             self.templayer.ResetReading()
 
             # отсортируем список по fid
-            feat_list = sorted(feat_list, key=lambda feature: feature.GetFID(), reverse=False)
+            # feat_list = sorted(feat_list, key=lambda feature: feature.GetFID(), reverse=False)
+            feat_list = sorted(feat_list, key=lambda feature: feature.GetField("TIME"), reverse=False)
 
             # for i in feat_list:
             #     self.textEdit.append(str(i.GetFID()))
 
-            accuracy = 10
+            accuracy = 20
             partsFlightList = []
             ids_list = []
             i = 0
@@ -305,7 +360,10 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.getLayer()
         self.getFilepath()
 
-        self.layerToMemory()
+        if self.driverName == "delimitedtext":
+            self.csvToMemory()
+        elif self.driverName == "ESRI Shapefile":
+            self.layerToMemory()
         self.removeZeroPointsFromMemory()
         self.mainAzimutCalc()
         self.saveTempLayerToFile()
