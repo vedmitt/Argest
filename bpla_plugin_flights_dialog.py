@@ -63,7 +63,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
 
     def initActiveLayersComboBox(self):
         canvas = iface.mapCanvas()
-        layers = canvas.layers()
+        layers = canvas.layers()  # по умолчанию только видимые слои
         self.actVecLyrDict = {}
         self.comboBox.clear()
         for layer in layers:
@@ -82,38 +82,33 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
     def getLayer(self):
         # get layer from combobox
         self.layer = self.actVecLyrDict.get(self.comboBox.currentText())
-        if self.layer is None:
-            self.textEdit.append('Слой не выбран!\n')
-        else:
+        if self.layer is not None:
             self.layername = self.layer.name()
+            self.driverName = self.layer.dataProvider().storageType()
             cur_lyr_path = self.layer.dataProvider().dataSourceUri()
 
-            if self.layer.dataProvider().storageType() == 'ESRI Shapefile':
-                self.driverName = self.layer.dataProvider().storageType()
+            if self.driverName == 'ESRI Shapefile':
                 char_arr = cur_lyr_path.split('|')
                 self.layerpath = char_arr[0]
 
-            elif self.layer.dataProvider().storageType() == 'Delimited text file':
-                self.driverName = 'delimitedtext'
+            elif self.driverName == 'Delimited text file':
                 fn = cur_lyr_path.split('?')
-                fn = fn[0].split('///')
-                self.layerpath = fn[1]
+                fn1 = fn[0].split('///')
+                self.layerpath = fn1[1]
+                attr = fn[1].split('&')
+                self.csvFileAttrs = {}
+                for i in range(len(attr)):
+                    elem = attr[i].split('=')
+                    self.csvFileAttrs.setdefault(elem[0], elem[1])
 
     def getFilepath(self):
         # get file name from line edit
+        self.filepath = None
         if self.lineEdit.text() != '':
             self.filepath = self.lineEdit.text()
             fn = os.path.basename(self.filepath)
             fn = fn.split('.shp')
             self.filename = fn[0]
-        else:
-            self.lineEdit.setText("Файл для сохранения не выбран!\n")
-
-    def setNewFileName(self, new_name):
-        fn = os.path.dirname(self.filepath)
-        self.filename = new_name
-        new_name = '/' + new_name + '.shp'
-        self.filepath = fn + new_name
 
     def setTextStyle(self, color, weight):
         colors = {
@@ -150,14 +145,15 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             driver = ogr.GetDriverByName('MEMORY')
 
             # create the data source
-            self.inDS = driver.CreateDataSource('memData')
+            self.outDS = driver.CreateDataSource('memData')
 
             # create the spatial reference, WGS84
             srs = osr.SpatialReference()
-            srs.ImportFromEPSG(4326)
+            espg = self.csvFileAttrs.get('crs').split(':')
+            srs.ImportFromEPSG(int(espg[1]))
 
             # create the layer
-            self.templayer = self.inDS.CreateLayer("temp_layer", srs, ogr.wkbPoint)
+            self.templayer = self.outDS.CreateLayer("temp_layer", srs, ogr.wkbPoint)
 
             # Add the all fields
             for field in reader.fieldnames:
@@ -172,7 +168,8 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
                     feature.SetField(item, row[item])
 
                 # create the WKT for the feature using Python string formatting
-                wkt = "POINT(%f %f)" % (float(row['LON']), float(row['LAT']))
+                wkt = "POINT(%f %f)" % (float(row[self.csvFileAttrs.get('xField')]),
+                                        float(row[self.csvFileAttrs.get('yField')]))
 
                 # Create the point from the Well Known Txt
                 point = ogr.CreateGeometryFromWkt(wkt)
@@ -190,8 +187,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         try:
             self.textEdit.append('Создаем новый слой...')
 
-            inDriver = ogr.GetDriverByName(self.driverName)
-            self.inDS = inDriver.Open(self.layerpath, 0)
+            self.inDS = ogr.GetDriverByName(self.driverName).Open(self.layerpath, 0)
 
             # Get the input shapefile
             in_lyr = self.inDS.GetLayer()
@@ -205,6 +201,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
 
             self.templayer = self.outDS.CopyLayer(in_lyr, 'temp_layer', ['OVERWRITE=YES'])
 
+            del self.inDS
         except Exception as err:
             self.setTextStyle('red', 'bold')
             self.textEdit.append('\nНе удалось создать временный слой! ' + str(err))
@@ -226,7 +223,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
                             geom = feat.geometry()
                             if geom.GetX() == 0.0 and geom.GetY() == 0.0:
                                 self.templayer.DeleteFeature(feat.GetFID())
-                                self.inDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
+                                self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
                                 # self.textEdit.append(str(feat.GetField("TIME")))
                     self.templayer.ResetReading()
                     self.setTextStyle('green', 'bold')
@@ -245,11 +242,14 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         try:
             fileDriver = ogr.GetDriverByName('ESRI Shapefile')
 
-            # создаем файл с другим именем, если этот уже существует
-            i = next((elem for elem in iface.mapCanvas().layers() if elem.name() == self.filename), None)
-            if i is not None:
-                new_name = self.filename + '_' + str(randint(10000, 99999))
-                self.setNewFileName(new_name)
+            # если слой уже существует и загружен, то удаляем его из проекта
+            for layer in QgsProject.instance().mapLayers().values():
+                if layer.name() == self.filename:
+                    QgsProject.instance().removeMapLayers([layer.id()])
+                    break
+
+            if os.path.exists(self.filepath):
+                fileDriver.DeleteDataSource(self.filepath)
 
             fileDS = fileDriver.CreateDataSource(self.filepath)
             newDS = fileDriver.Open(self.filepath, 1)
@@ -260,12 +260,11 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
                 self.setTextStyle('green', 'bold')
                 self.textEdit.append('Слой успешно загружен в QGIS!')
                 self.setTextStyle('black', 'normal')
-            del fileDS
         except Exception as err:
             self.setTextStyle('red', 'bold')
             self.textEdit.append('\nНе удалось сохранить файл! ' + str(err))
 
-        del self.inDS, newDS, self.outDS, self.tmpDS
+        del self.outDS, newDS, fileDS
 
     def azimutCalc(self, x1, x2):
         dX = x2[0] - x1[0]
@@ -302,8 +301,17 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             # feat_list = sorted(feat_list, key=lambda feature: feature.GetFID(), reverse=False)
             feat_list = sorted(feat_list, key=lambda feature: feature.GetField("TIME"), reverse=False)
 
-            # for i in feat_list:
-            #     self.textEdit.append(str(i.GetFID()))
+            # удалим скопление точек в самом начале полетов
+            delta = 0.0003732999903149903 / 10
+            geom = feat_list[0].geometry()
+            # self.templayer.SetSpatialFilterRect(geom.GetX(), geom.GetY(),
+            #                                     geom.GetX() + delta, geom.GetY() + delta)
+            for i in range(self.templayer.GetFeatureCount()):
+                geom1 = feat_list[i].geometry()
+                if math.fabs(geom.GetX()-geom1.GetX()) < delta or math.fabs(geom.GetY()-geom1.GetY()) < delta:
+                    self.templayer.DeleteFeature(feat_list[i].GetFID())
+                    self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
+
 
             accuracy = 20
             partsFlightList = []
@@ -343,7 +351,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
                 if len(list) < longest_list / 2:
                     for fid in list:
                         self.templayer.DeleteFeature(fid)
-                        self.inDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
+                        self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
             self.templayer.ResetReading()
             self.textEdit.append('\nКоличество точек в полученном слое: ' + str(self.templayer.GetFeatureCount()))
 
@@ -360,14 +368,17 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.getLayer()
         self.getFilepath()
 
-        if self.driverName == "delimitedtext":
-            self.csvToMemory()
-        elif self.driverName == "ESRI Shapefile":
-            self.layerToMemory()
-        self.removeZeroPointsFromMemory()
-        self.mainAzimutCalc()
-        self.saveTempLayerToFile()
-
+        if self.layer and self.filepath is not None:
+            if self.driverName == "Delimited text file":
+                self.csvToMemory()
+            elif self.driverName == "ESRI Shapefile":
+                self.layerToMemory()
+            self.removeZeroPointsFromMemory()
+            self.mainAzimutCalc()
+            self.saveTempLayerToFile()
+        else:
+            self.setTextStyle('red', 'bold')
+            self.textEdit.append('Введите данные в форму!\n')
 
 
 

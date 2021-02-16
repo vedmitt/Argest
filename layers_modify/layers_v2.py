@@ -228,5 +228,75 @@ def txtFilesTest():
     # Save and close the data source
     data_source = None
 
+def spatialIndexTest():
+    inShapefile = "M:/Sourcetree/bpla_plugin_flights/output/test.shp"
+    inDriver = ogr.GetDriverByName("ESRI Shapefile")
+    inDataSource = inDriver.Open(inShapefile, 0)
+    inLayer = inDataSource.GetLayer()
+
+    # # Collect all Geometry
+    # geomcol = ogr.Geometry(ogr.wkbGeometryCollection)
+    # for feature in inLayer:
+    #     geomcol.AddGeometry(feature.GetGeometryRef())
+    #
+    # # Calculate convex hull
+    # convexhull = geomcol.ConvexHull()
+
+    # # Save extent to a new Shapefile
+    # outShapefile = "M:/Sourcetree/bpla_plugin_flights/output/states_convexhull.shp"
+    # outDriver = ogr.GetDriverByName("ESRI Shapefile")
+    #
+    # # Remove output shapefile if it already exists
+    # if os.path.exists(outShapefile):
+    #     outDriver.DeleteDataSource(outShapefile)
+    #
+    # # Create the output shapefile
+    # outDataSource = outDriver.CreateDataSource(outShapefile)
+    # outLayer = outDataSource.CreateLayer("states_convexhull", geom_type=ogr.wkbPolygon)
+    #
+    # # Add an ID field
+    # idField = ogr.FieldDefn("id", ogr.OFTInteger)
+    # outLayer.CreateField(idField)
+    #
+    # # Create the feature and set values
+    # featureDefn = outLayer.GetLayerDefn()
+    # feature = ogr.Feature(featureDefn)
+    # feature.SetGeometry(convexhull)
+    # feature.SetField("id", 1)
+    # outLayer.CreateFeature(feature)
+    # feature = None
+    #
+    # # Save and close DataSource
+    # inDataSource = None
+    # outDataSource = None
+
+    # wkt = "POLYGON ((143.513377 63.7332))"
+
+    delta = 0.0003732999903149903
+    for i in range(20):
+        feature = inLayer.GetNextFeature()
+        geom = feature.geometry()
+        inLayer.SetSpatialFilterRect(geom.GetX(), geom.GetY(),
+                                     geom.GetX() + delta, geom.GetY() + delta)
+        print(inLayer.GetFeatureCount())
+    inLayer.ResetReading()
+
 if __name__ == "__main__":
-    txtFilesTest()
+    # txtFilesTest()
+
+    # cur_lyr_path = 'file:///M:/YandexDisk/QGIS/my_data_source/20200905_(F1-8)wMagnCoord.txt?type=csv&delimiter=%5Ct&detectTypes=yes&xField=LON&yField=LAT&crs=EPSG:4326&spatialIndex=no&subsetIndex=no&watchFile=no'
+    # fn = cur_lyr_path.split('?')
+    # fn1 = fn[0].split('///')
+    # layerpath = fn1[1]
+    # # print(fn)
+    # attr = fn[1].split('&')
+    # # print(attr)
+    # attr_dict = {}
+    # for i in range(len(attr)):
+    #     elem = attr[i].split('=')
+    #     attr_dict.setdefault(elem[0], elem[1])
+    # print(attr_dict)
+    # espg = attr_dict.get('crs').split(':')
+    # print(int(espg[1]))
+
+    spatialIndexTest()
