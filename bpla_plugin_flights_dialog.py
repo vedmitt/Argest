@@ -287,6 +287,12 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         else:
             return 0
 
+    def distanceCalc(self, x1, x2):
+        dX = x2[0] - x1[0]
+        dY = x2[1] - x1[1]
+        dist = math.sqrt((dX * dX) + (dY * dY))
+        return dist
+
     def mainAzimutCalc(self):
         # ------ основная часть плагина -------------------------
         self.textEdit.append('\nНачинаем удаление избыточных точек...')
@@ -301,21 +307,22 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             # feat_list = sorted(feat_list, key=lambda feature: feature.GetFID(), reverse=False)
             feat_list = sorted(feat_list, key=lambda feature: feature.GetField("TIME"), reverse=False)
 
-            # удалим скопление точек в самом начале полетов
-            delta = 0.0003732999903149903 / 10
-            geom = feat_list[0].geometry()
-            # self.templayer.SetSpatialFilterRect(geom.GetX(), geom.GetY(),
-            #                                     geom.GetX() + delta, geom.GetY() + delta)
-            for i in range(self.templayer.GetFeatureCount()):
-                geom1 = feat_list[i].geometry()
-                if math.fabs(geom.GetX()-geom1.GetX()) < delta or math.fabs(geom.GetY()-geom1.GetY()) < delta:
-                    self.templayer.DeleteFeature(feat_list[i].GetFID())
-                    self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
-
+            # # удалим скопление точек в самом начале полетов
+            # delta = 0.0003732999903149903 / 10
+            # geom = feat_list[0].geometry()
+            # # self.templayer.SetSpatialFilterRect(geom.GetX(), geom.GetY(),
+            # #                                     geom.GetX() + delta, geom.GetY() + delta)
+            # for i in range(self.templayer.GetFeatureCount()):
+            #     geom1 = feat_list[i].geometry()
+            #     if math.fabs(geom.GetX()-geom1.GetX()) < delta or math.fabs(geom.GetY()-geom1.GetY()) < delta:
+            #         self.templayer.DeleteFeature(feat_list[i].GetFID())
+            #         self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
 
             accuracy = 20
-            partsFlightList = []
-            ids_list = []
+            min_dist = 6.966525707833812e-08
+            flightList = []
+            parts_list = []
+            bad_paths = []
             i = 0
             while i + 2 < len(feat_list):
                 azimut_1 = self.azimutCalc([feat_list[i].geometry().GetX(), feat_list[i].geometry().GetY()],
@@ -323,36 +330,53 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
                 azimut_2 = self.azimutCalc([feat_list[i + 1].geometry().GetX(), feat_list[i + 1].geometry().GetY()],
                                            [feat_list[i + 2].geometry().GetX(), feat_list[i + 2].geometry().GetY()])
 
+                dist = self.distanceCalc([feat_list[i].geometry().GetX(), feat_list[i].geometry().GetY()],
+                                         [feat_list[i + 1].geometry().GetX(), feat_list[i + 1].geometry().GetY()])
+
                 if math.fabs(azimut_1 - azimut_2) < accuracy:
-                    ids_list.append(feat_list[i].GetFID())
+                    if dist < min_dist:
+                        bad_paths.append(feat_list[i].GetFID())
+                    else:
+                        parts_list.append(feat_list[i])
                 else:
-                    if ids_list is not None:
-                        partsFlightList.append(ids_list)
-                    ids_list = [feat_list[i].GetFID()]
+                    if parts_list is not None:
+                        flightList.append(parts_list)
+                    parts_list = [feat_list[i]]
                 i += 1
 
-            if ids_list is not None:
-                ids_list.append(feat_list[i].GetFID())
-                ids_list.append(feat_list[i+1].GetFID())
-                partsFlightList.append(ids_list)
+            if parts_list is not None:
+                parts_list.append(feat_list[i])
+                parts_list.append(feat_list[i + 1])
+                flightList.append(parts_list)
+
+            # удаляем аномальные пути в начале полетов
+            for item in bad_paths:
+                self.templayer.DeleteFeature(item)
+                self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
+
+            # анализируем длины полетов
+            for i in range(len(flightList)):
+                if i + 1 < len(flightList):
+                    if len(flightList[i]) < len(flightList[i + 1]):
+                        flightList[i].extend(flightList[i + 1])
+                        flightList.remove(flightList[i + 1])
+
+            self.textEdit.append('Количество частей полетов: ' + str(len(flightList)))
+            longest_list = max(len(elem) for elem in flightList)
+            self.textEdit.append('Самый длинный полет: ' + str(longest_list))
+            shortest_list = min(len(elem) for elem in flightList)
+            self.textEdit.append('Самый короткий полет: ' + str(shortest_list))
+
+            # Удаляем лишние полеты
+            for list in flightList:
+                if len(list) < longest_list / 2:
+                    for feat in list:
+                        self.templayer.DeleteFeature(feat.GetFID())
+                        self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
 
             self.setTextStyle('green', 'bold')
             self.textEdit.append('Избыточные точки успешно удалены!')
             self.setTextStyle('black', 'normal')
-            self.textEdit.append('Количество частей полетов: ' + str(len(partsFlightList)))
-
-            longest_list = max(len(elem) for elem in partsFlightList)
-            self.textEdit.append('Самый длинный полет: ' + str(longest_list))
-            shortest_list = min(len(elem) for elem in partsFlightList)
-            self.textEdit.append('Самый короткий полет: ' + str(shortest_list))
-
-            # анализируем длины полетов и удаляем точки
-            for list in partsFlightList:
-                if len(list) < longest_list / 2:
-                    for fid in list:
-                        self.templayer.DeleteFeature(fid)
-                        self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
-            self.templayer.ResetReading()
             self.textEdit.append('\nКоличество точек в полученном слое: ' + str(self.templayer.GetFeatureCount()))
 
         except Exception as err:
@@ -379,8 +403,3 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         else:
             self.setTextStyle('red', 'bold')
             self.textEdit.append('Введите данные в форму!\n')
-
-
-
-
-
