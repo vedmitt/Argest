@@ -295,6 +295,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
 
     def mainAzimutCalc(self):
         # ------ основная часть плагина -------------------------
+        global azimut_2
         self.textEdit.append('\nНачинаем удаление избыточных точек...')
         try:
             feat_list = []
@@ -318,12 +319,14 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             #         self.templayer.DeleteFeature(feat_list[i].GetFID())
             #         self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
 
-            accuracy = 20
+            accuracy = 10
             min_dist = 6.966525707833812e-08
             flightList = []
             parts_list = []
             bad_paths = []
             i = 0
+            az_temp = []
+            avg_az_list = []
             while i + 2 < len(feat_list):
                 azimut_1 = self.azimutCalc([feat_list[i].geometry().GetX(), feat_list[i].geometry().GetY()],
                                            [feat_list[i + 1].geometry().GetX(), feat_list[i + 1].geometry().GetY()])
@@ -338,15 +341,22 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
                         bad_paths.append(feat_list[i].GetFID())
                     else:
                         parts_list.append(feat_list[i])
+                        az_temp.append(azimut_1)
                 else:
                     if parts_list is not None:
                         flightList.append(parts_list)
+                        az_sum = 0
+                        for item in az_temp:
+                            az_sum = az_sum + item
+                        avg_az_list.append(az_sum / len(az_temp))
                     parts_list = [feat_list[i]]
+                    az_temp = [azimut_1]
                 i += 1
 
             if parts_list is not None:
                 parts_list.append(feat_list[i])
                 parts_list.append(feat_list[i + 1])
+                avg_az_list.append(azimut_2)
                 flightList.append(parts_list)
 
             # удаляем аномальные пути в начале полетов
@@ -354,25 +364,37 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
                 self.templayer.DeleteFeature(item)
                 self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
 
-            # анализируем длины полетов
-            for i in range(len(flightList)):
-                if i + 1 < len(flightList):
-                    if len(flightList[i]) < len(flightList[i + 1]):
-                        flightList[i].extend(flightList[i + 1])
-                        flightList.remove(flightList[i + 1])
-
             self.textEdit.append('Количество частей полетов: ' + str(len(flightList)))
-            longest_list = max(len(elem) for elem in flightList)
-            self.textEdit.append('Самый длинный полет: ' + str(longest_list))
-            shortest_list = min(len(elem) for elem in flightList)
-            self.textEdit.append('Самый короткий полет: ' + str(shortest_list))
+            self.textEdit.append('Количество усредненных азимутов: ' + str(len(avg_az_list)))
+            longest_path = max(len(elem) for elem in flightList)
+            self.textEdit.append('Самый длинный полет: ' + str(longest_path))
+            shortest_path = min(len(elem) for elem in flightList)
+            self.textEdit.append('Самый короткий полет: ' + str(shortest_path))
 
-            # Удаляем лишние полеты
-            for list in flightList:
-                if len(list) < longest_list / 2:
-                    for feat in list:
+            i_longest = 0
+            for path in flightList:
+                if len(path) == longest_path:
+                    i_longest = flightList.index(path)
+                    break
+
+            target_az = avg_az_list[i_longest]
+            self.textEdit.append('Целевой азимут: ' + str(target_az))
+            for i in range(len(avg_az_list)):
+                if math.fabs(avg_az_list[i] - target_az) < accuracy or math.fabs((avg_az_list[i]+180) - target_az) < accuracy:
+                    if len(flightList[i]) < 10:
+                        for feat in flightList[i]:
+                            self.templayer.DeleteFeature(feat.GetFID())
+                            self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
+                else:
+                    for feat in flightList[i]:
                         self.templayer.DeleteFeature(feat.GetFID())
                         self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
+
+            # for path in flightList:
+            #     if len(path) < longest_path / 2:
+            #         for feat in path:
+            #             self.templayer.DeleteFeature(feat.GetFID())
+            #             self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
 
             self.setTextStyle('green', 'bold')
             self.textEdit.append('Избыточные точки успешно удалены!')
