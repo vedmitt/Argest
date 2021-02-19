@@ -300,21 +300,27 @@ if __name__ == "__main__":
     # print(int(espg[1]))
 
     # spatialIndexTest()
-    # x1 = [143.51339134611652071, 63.73329106116504761]
-    # x2 = [143.51339141529126664, 63.73329105291261953]
+
+    # x1 = [143.51339611917475736, 63.73329049174756733]
+    # x2 = [143.51339625752427764, 63.73329047524271829]
     # dX = x2[0] - x1[0]
     # dY = x2[1] - x1[1]
     # dist = math.sqrt((dX * dX) + (dY * dY))
     # print(dist)
 
-    a1 = [0, 1, 2]
-    a2 = [3, 4, 5, 6]
-    a3 = [7, 8, 9, 10, 11, 12]
-    A = [a1, a2, a3]
-    print(A)
-    for i in range(len(A)):
-        if i+1 < len(A):
-            if len(A[i]) < len(A[i + 1]):
-                A[i].extend(A[i+1])
-                A.remove(A[i+1])
-    print(A)
+    # a1 = [0, 1, 2]
+    # a2 = [3, 4, 5, 6]
+    # a3 = [7, 8, 9, 10, 11, 12]
+    # A = [a1, a2, a3]
+    # print(A)
+    # for i in range(len(A)):
+    #     if i+1 < len(A):
+    #         if len(A[i]) < len(A[i + 1]):
+    #             A[i].extend(A[i+1])
+    #             A.remove(A[i+1])
+    # print(A)
+
+    a = 5
+    b = 10
+    if a in range(0, 10):
+        print(a)
