@@ -1,6 +1,6 @@
 <RCC>
     <qresource prefix="/plugins/bpla_plugin_flights" >
-        <file>icon.png</file>
-		<file>icon_reload.png</file>
+        <file>icons/icon.png</file>
+		<file>icons/icon_reload.png</file>
     </qresource>
 </RCC>

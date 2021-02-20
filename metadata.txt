@@ -28,7 +28,7 @@ repository=Provide link to the code repository
 # tags=pyqgis
 
 homepage=Provide the home page for the plugin
-icon=icon.png
+icon=icons/icon.png
 # experimental flag
 experimental=False
 

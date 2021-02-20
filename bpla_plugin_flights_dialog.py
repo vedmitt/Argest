@@ -55,7 +55,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
         self.initActiveLayersComboBox()
-        self.toolButton_cbreload.setIcon(QIcon(':/plugins/bpla_plugin_flights/icon_reload.png'))
+        self.toolButton_cbreload.setIcon(QIcon(':/plugins/bpla_plugin_flights/icons/icon_reload.png'))
         self.toolButton_cbreload.clicked.connect(self.initActiveLayersComboBox)
         self.checkBox.setChecked(True)
         self.toolButton.clicked.connect(self.getSaveFileName)
@@ -76,7 +76,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
 
     def getSaveFileName(self):
         dlg = QtWidgets.QFileDialog(self)
-        fn = dlg.getSaveFileName(self, 'Save file', r'M:\Sourcetree\bpla_plugin_flights\output\test', filter='*.shp')[0]
+        fn = dlg.getSaveFileName(self, 'Save file', r'M:\Sourcetree\output\test', filter='*.shp')[0]
         self.lineEdit.setText(fn)
 
     def getLayer(self):
@@ -310,8 +310,8 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             accuracy = 10
             flightList = []
             parts_list = []
-            # min_dist = 6.966525707833812e-08
-            # bad_paths = []
+            min_dist = 6.966525707833812e-08
+            bad_paths = []
             i = 0
             az_temp = []
             avg_az_list = []
@@ -321,13 +321,13 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
                 azimut_2 = self.azimutCalc([feat_list[i + 1].geometry().GetX(), feat_list[i + 1].geometry().GetY()],
                                            [feat_list[i + 2].geometry().GetX(), feat_list[i + 2].geometry().GetY()])
 
-                # dist = self.distanceCalc([feat_list[i].geometry().GetX(), feat_list[i].geometry().GetY()],
-                #                          [feat_list[i + 1].geometry().GetX(), feat_list[i + 1].geometry().GetY()])
+                dist = self.distanceCalc([feat_list[i].geometry().GetX(), feat_list[i].geometry().GetY()],
+                                         [feat_list[i + 1].geometry().GetX(), feat_list[i + 1].geometry().GetY()])
 
                 if math.fabs(azimut_1 - azimut_2) < accuracy:
-                    # if dist < min_dist:
-                    #     bad_paths.append(feat_list[i].GetFID())
-                    # else:
+                    if dist < min_dist:
+                        bad_paths.append(feat_list[i].GetFID())
+                    else:
                         parts_list.append(feat_list[i])
                         az_temp.append(azimut_1)
                 else:
@@ -347,48 +347,51 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
                 avg_az_list.append(azimut_2)
                 flightList.append(parts_list)
 
-            # # удаляем аномальные пути в начале полетов
-            # for item in bad_paths:
-            #     self.templayer.DeleteFeature(item)
-            #     self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
+            # удаляем аномальные пути в начале полетов
+            for item in bad_paths:
+                self.templayer.DeleteFeature(item)
+                self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
 
             self.textEdit.append('Количество частей полетов: ' + str(len(flightList)))
-            self.textEdit.append('Количество усредненных азимутов: ' + str(len(avg_az_list)))
+            # self.textEdit.append('Количество усредненных азимутов: ' + str(len(avg_az_list)))
             longest_path = max(len(elem) for elem in flightList)
             self.textEdit.append('Самый длинный полет: ' + str(longest_path))
-            shortest_path = min(len(elem) for elem in flightList)
-            self.textEdit.append('Самый короткий полет: ' + str(shortest_path))
+            # shortest_path = min(len(elem) for elem in flightList)
+            # self.textEdit.append('Самый короткий полет: ' + str(shortest_path))
 
-            # i_longest = 0
-            # for path in flightList:
-            #     if len(path) == longest_path:
-            #         i_longest = flightList.index(path)
-            #         break
-            #
-            # target_az = avg_az_list[i_longest]
-            # self.textEdit.append('Целевой азимут: ' + str(target_az))
-            # for i in range(len(avg_az_list)):
-            #     if math.fabs(avg_az_list[i] - target_az) < accuracy or math.fabs((avg_az_list[i]+180) - target_az) < accuracy:
-            #         if len(flightList[i]) < 20:
-            #             for feat in flightList[i]:
-            #                 self.templayer.DeleteFeature(feat.GetFID())
-            #                 self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
-            #     else:
-            #         for feat in flightList[i]:
-            #             self.templayer.DeleteFeature(feat.GetFID())
-            #             self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
+            i_longest = 0
+            for path in flightList:
+                if len(path) == longest_path:
+                    i_longest = flightList.index(path)
+                    break
 
-            while i + 2 < len(avg_az_list):
-                if math.fabs(avg_az_list[i] - avg_az_list[i+1]) in range(89, 91) \
-                        or math.fabs(avg_az_list[i+1] - avg_az_list[i+2]) in range(89, 91):
-                    if len(flightList[i]) > len(flightList[i+1]) and len(flightList[i+2]) > len(flightList[i+1]):
-                        for feat in flightList[i+1]:
+            target_az = avg_az_list[i_longest]
+            self.textEdit.append('Целевой азимут: ' + str(target_az))
+            for i in range(len(avg_az_list)):
+                if math.fabs(avg_az_list[i] - target_az) < accuracy or math.fabs((avg_az_list[i]+180) - target_az) < accuracy:
+                    if len(flightList[i]) < 20:
+                        for feat in flightList[i]:
                             self.templayer.DeleteFeature(feat.GetFID())
                             self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
                 else:
                     for feat in flightList[i]:
                         self.templayer.DeleteFeature(feat.GetFID())
                         self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
+
+            # for i in range(len(avg_az_list)):
+            #     self.textEdit.append(str(avg_az_list[i]))
+
+            # while i + 2 < len(avg_az_list):
+            #     if math.fabs(avg_az_list[i] - avg_az_list[i+1]) < 90 \
+            #             or math.fabs(avg_az_list[i+1] - avg_az_list[i+2]) < 90:
+            #         if len(flightList[i]) > len(flightList[i+1]) and len(flightList[i+2]) > len(flightList[i+1]):
+            #             for feat in flightList[i+1]:
+            #                 self.templayer.DeleteFeature(feat.GetFID())
+            #                 self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
+            #     else:
+            #         for feat in flightList[i]:
+            #             self.templayer.DeleteFeature(feat.GetFID())
+            #             self.outDS.ExecuteSQL('REPACK ' + self.templayer.GetName())
 
             # for path in flightList:
             #     if len(path) < longest_path / 2:
