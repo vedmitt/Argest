@@ -20,37 +20,14 @@
  This script initializes the plugin, making it known to QGIS.
 """
 
-from .bpla_plugin_flights import bpla_plugin_flights
-from PyQt5.QtCore import *
 
+# noinspection PyPep8Naming
+def classFactory(iface):  # pylint: disable=invalid-name
+    """Load bpla_plugin_flights class from file bpla_plugin_flights.
 
-def name():
-    return "BPLA Plugin Flights"
-
-
-def description():
-    return "this plugin removes irregular points."
-
-
-def version():
-    return "v1.0.0-beta"
-
-
-def qgisMinimumVersion():
-    return "3.0"
-
-
-def qgisMaximumVersion():
-    return "3.18"
-
-
-def authorName():
-    return "Veronika Dmitrieva"
-
-
-def icon():
-    return "icons/icon.png"
-
-
-def classFactory(iface):
-    return bpla_plugin_flights(iface)
+    :param iface: A QGIS interface instance.
+    :type iface: QgsInterface
+    """
+    #
+    from .numit_plugin import numit_plugin
+    return numit_plugin(iface)

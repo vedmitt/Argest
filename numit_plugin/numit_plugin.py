@@ -1,35 +1,17 @@
 # -*- coding: utf-8 -*-
-"""
-/***************************************************************************
- bpla_plugin_flights
-                                 A QGIS plugin
-                              -------------------
-        copyright            : (C) 2021 by Ronya14
-        email                : ronya14@mail.ru
- ***************************************************************************/
 
-/***************************************************************************
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- ***************************************************************************/
-"""
 from qgis.PyQt.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QMenu
+from qgis.PyQt.QtWidgets import QAction
 
 # Initialize Qt resources from file resources.py
-from .resources import *
+import resources
 # Import the code for the dialog
-from .bpla_plugin_flights_dialog import bpla_plugin_flightsDialog
-from .numit_plugin.numit_plugin_dialog import numit_pluginDialog
+from .numit_plugin_dialog import numit_pluginDialog
 import os.path
 
 
-class bpla_plugin_flights:
+class numit_plugin:
     """QGIS Plugin Implementation."""
 
     def __init__(self, iface):
@@ -59,14 +41,14 @@ class bpla_plugin_flights:
                 QCoreApplication.installTranslator(self.translator)
 
         # Create the dialog (after translation) and keep reference
-        self.dlg = bpla_plugin_flightsDialog()
+        self.dlg = numit_pluginDialog()
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&bpla_plugin_flights')
+        self.menu = self.tr(u'&numit_plugin')
         # TODO: We are going to let the user set this up in a future iteration
-        self.toolbar = self.iface.addToolBar(u'bpla_plugin_flights')
-        self.toolbar.setObjectName(u'bpla_plugin_flights')
+        self.toolbar = self.iface.addToolBar(u'numit_plugin')
+        self.toolbar.setObjectName(u'numit_plugin')
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -81,7 +63,7 @@ class bpla_plugin_flights:
         :rtype: QString
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        return QCoreApplication.translate('bpla_plugin_flights', message)
+        return QCoreApplication.translate('numit_plugin', message)
 
 
     def add_action(
@@ -161,51 +143,20 @@ class bpla_plugin_flights:
 
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
-        #
-        icon_path = ':/plugins/bpla_plugin_flights/icons/icon.png'
-        self.add_action(
-            icon_path,
-            text=self.tr(u'bpla_plugin_flights'),
-            callback=self.run,
-            parent=self.iface.mainWindow())
 
         icon_path = ':/plugins/bpla_plugin_flights/icons/icon_1.png'
         self.add_action(
             icon_path,
             text=self.tr(u'numit_plugin'),
             callback=self.run,
-            parent=numit_pluginDialog(self.iface.mainWindow()))
+            parent=self.iface.mainWindow())
 
-        # self.toolBar = self.iface.addToolBar("BPLAPlugin")
-        # self.toolBar.setObjectName("BPLAPlugin")
-        #
-        # self.menu = QMenu()
-        # self.menu.setTitle(QCoreApplication.translate("BPLAPlugin", "BPLAPlugin"))
-        # self.numprofile = QAction(QCoreApplication.translate("BPLAPlugin", "Numit!"), self.iface.mainWindow())
-        #
-        # self.menu.addActions([self.numprofile])
-        #
-        # menu_bar = self.iface.mainWindow().menuBar()
-        # actions = menu_bar.actions()
-        # lastAction = actions[len(actions) - 1]
-        # menu_bar.insertMenu(lastAction, self.menu)
-
-    #     self.numprofile.triggered.connect(self.doAbout())
-    #     # self.cadtools_settings.triggered.connect(self.doSettings)
-    #
-    #     # Get the tools
-    #     self.numprofilepoints = numit_pluginDialog(self.iface, self.toolBar)
-    #
-    #
-    def doAbout(self):
-        d = numit_pluginDialog(self.iface.mainWindow())
-        d.show()
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
             self.iface.removePluginMenu(
-                self.tr(u'&bpla_plugin_flights'),
+                self.tr(u'&numit_plugin'),
                 action)
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
