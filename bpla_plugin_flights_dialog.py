@@ -35,7 +35,7 @@ from PyQt5.QtGui import *
 from qgis.core import *
 
 from osgeo import ogr, osr
-import sys
+from .tools.LayerUtils import LayerGetter
 
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
 from qgis.utils import iface
@@ -63,15 +63,9 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
 
     def initActiveLayersComboBox(self):
         canvas = iface.mapCanvas()
-        layers = canvas.layers()  # по умолчанию только видимые слои
-        self.actVecLyrDict = {}
         self.comboBox.clear()
-        for layer in layers:
-            if ((type(layer) == QgsVectorLayer) and (layer.geometryType() == 0)):
-                # setdefault добавляет элементы с проверкой на повторяющиеся
-                # если у пользователя два слоя с одиноковыми именами, в комбобокс попадет только один из них
-                self.actVecLyrDict.setdefault(layer.name(), layer)
-        self.comboBox.addItems(self.actVecLyrDict.keys())
+        dictLyr = LayerGetter.getActiveLayers(canvas)
+        self.comboBox.addItems(dictLyr.keys())
         self.comboBox.show()
 
     def getSaveFileName(self):
@@ -79,27 +73,6 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         fn = dlg.getSaveFileName(self, 'Save file', r'M:\Sourcetree\output\test', filter='*.shp')[0]
         self.lineEdit.setText(fn)
 
-    def getLayer(self):
-        # get layer from combobox
-        self.layer = self.actVecLyrDict.get(self.comboBox.currentText())
-        if self.layer is not None:
-            self.layername = self.layer.name()
-            self.driverName = self.layer.dataProvider().storageType()
-            cur_lyr_path = self.layer.dataProvider().dataSourceUri()
-
-            if self.driverName == 'ESRI Shapefile':
-                char_arr = cur_lyr_path.split('|')
-                self.layerpath = char_arr[0]
-
-            elif self.driverName == 'Delimited text file':
-                fn = cur_lyr_path.split('?')
-                fn1 = fn[0].split('///')
-                self.layerpath = fn1[1]
-                attr = fn[1].split('&')
-                self.csvFileAttrs = {}
-                for i in range(len(attr)):
-                    elem = attr[i].split('=')
-                    self.csvFileAttrs.setdefault(elem[0], elem[1])
 
     def getFilepath(self):
         # get file name from line edit
@@ -414,7 +387,14 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.setTextStyle('black', 'normal')
         self.textEdit.setText('')
 
-        self.getLayer()
+        # get layer from combobox
+        attr = LayerGetter.getLayer(self.comboBox.currentText())
+        self.driverName = attr[0]
+        self.layername = attr[1]
+        self.layerpath = attr[2]
+        if attr[3] is not None:
+            self.csvFileAttrs = attr[3]
+            
         self.getFilepath()
 
         if self.layer and self.filepath is not None:

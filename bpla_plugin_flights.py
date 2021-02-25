@@ -25,7 +25,7 @@ from qgis.PyQt.QtWidgets import QAction, QMenu
 from .resources import *
 # Import the code for the dialog
 from .bpla_plugin_flights_dialog import bpla_plugin_flightsDialog
-from .numit_plugin.numit_plugin_dialog import numit_pluginDialog
+from .tools.numit_plugin_dialog import numit_pluginDialog
 import os.path
 
 
@@ -165,38 +165,17 @@ class bpla_plugin_flights:
         icon_path = ':/plugins/bpla_plugin_flights/icons/icon.png'
         self.add_action(
             icon_path,
-            text=self.tr(u'bpla_plugin_flights'),
+            text=self.tr('Выделение профилей'),
             callback=self.run,
             parent=self.iface.mainWindow())
 
         icon_path = ':/plugins/bpla_plugin_flights/icons/icon_1.png'
         self.add_action(
             icon_path,
-            text=self.tr(u'numit_plugin'),
-            callback=self.run,
+            text=self.tr(u'bpla_plugin_flights'),
+            callback=self.doAbout,
             parent=numit_pluginDialog(self.iface.mainWindow()))
 
-        # self.toolBar = self.iface.addToolBar("BPLAPlugin")
-        # self.toolBar.setObjectName("BPLAPlugin")
-        #
-        # self.menu = QMenu()
-        # self.menu.setTitle(QCoreApplication.translate("BPLAPlugin", "BPLAPlugin"))
-        # self.numprofile = QAction(QCoreApplication.translate("BPLAPlugin", "Numit!"), self.iface.mainWindow())
-        #
-        # self.menu.addActions([self.numprofile])
-        #
-        # menu_bar = self.iface.mainWindow().menuBar()
-        # actions = menu_bar.actions()
-        # lastAction = actions[len(actions) - 1]
-        # menu_bar.insertMenu(lastAction, self.menu)
-
-    #     self.numprofile.triggered.connect(self.doAbout())
-    #     # self.cadtools_settings.triggered.connect(self.doSettings)
-    #
-    #     # Get the tools
-    #     self.numprofilepoints = numit_pluginDialog(self.iface, self.toolBar)
-    #
-    #
     def doAbout(self):
         d = numit_pluginDialog(self.iface.mainWindow())
         d.show()

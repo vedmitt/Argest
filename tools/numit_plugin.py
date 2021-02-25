@@ -45,10 +45,10 @@ class numit_plugin:
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&numit_plugin')
+        self.menu = self.tr(u'&tools')
         # TODO: We are going to let the user set this up in a future iteration
-        self.toolbar = self.iface.addToolBar(u'numit_plugin')
-        self.toolbar.setObjectName(u'numit_plugin')
+        self.toolbar = self.iface.addToolBar(u'tools')
+        self.toolbar.setObjectName(u'tools')
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -63,7 +63,7 @@ class numit_plugin:
         :rtype: QString
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        return QCoreApplication.translate('numit_plugin', message)
+        return QCoreApplication.translate('tools', message)
 
 
     def add_action(
@@ -147,7 +147,7 @@ class numit_plugin:
         icon_path = ':/plugins/bpla_plugin_flights/icons/icon_1.png'
         self.add_action(
             icon_path,
-            text=self.tr(u'numit_plugin'),
+            text=self.tr(u'tools'),
             callback=self.run,
             parent=self.iface.mainWindow())
 
@@ -156,7 +156,7 @@ class numit_plugin:
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
             self.iface.removePluginMenu(
-                self.tr(u'&numit_plugin'),
+                self.tr(u'&tools'),
                 action)
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
