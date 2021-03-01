@@ -1,23 +1,18 @@
 # -*- coding: utf-8 -*-
-
-import csv
-import math
 import os
-from datetime import datetime
-from random import random, randint
 
-from PyQt5.QtCore import QVariant
 from PyQt5.QtGui import QIcon
 from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
 from PyQt5.QtGui import *
-from qgis.core import *
-
-from osgeo import ogr, osr
-import sys
 
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
+from qgis._core import QgsVectorLayer
 from qgis.utils import iface
+
+from .LayerUtils.GuiElemIFace import GuiElemIFace
+from .LayerUtils.LayerGetter import LayerGetter
+from .LayerUtils.LyrConvTool import LyrConvTool
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'numit_plugin.ui'))
@@ -39,32 +34,11 @@ class numit_pluginDialog(QtWidgets.QDialog, FORM_CLASS):
         self.pushButton.clicked.connect(self.doResult)
 
     def initActiveLayersComboBox(self):
-        canvas = iface.mapCanvas()
-        layers = canvas.layers()  # по умолчанию только видимые слои
-        self.actVecLyrDict = {}
-        self.comboBox.clear()
-        for layer in layers:
-            if ((type(layer) == QgsVectorLayer) and (layer.geometryType() == 0)):
-                # setdefault добавляет элементы с проверкой на повторяющиеся
-                # если у пользователя два слоя с одиноковыми именами, в комбобокс попадет только один из них
-                self.actVecLyrDict.setdefault(layer.name(), layer)
-        self.comboBox.addItems(self.actVecLyrDict.keys())
-        self.comboBox.show()
-
-    def getLayer(self):
-        # get layer from combobox
-        self.layer = self.actVecLyrDict.get(self.comboBox.currentText())
-        if self.layer is not None:
-            self.layername = self.layer.name()
-            self.driverName = self.layer.dataProvider().storageType()
-            cur_lyr_path = self.layer.dataProvider().dataSourceUri()
-
-            if self.driverName == 'ESRI Shapefile':
-                char_arr = cur_lyr_path.split('|')
-                self.layerpath = char_arr[0]
-
-
+        lg = LayerGetter()
+        self.dictLyr = lg.getActiveLayers(iface.mapCanvas())
+        GuiElemIFace(None).setComboBox(self.comboBox, self.dictLyr)
 
     def doResult(self):
-        self.setTextStyle('black', 'normal')
         self.textEdit.setText('')
+        # vlayer = QgsVectorLayer(lg.layerpath, lg.layername, 'ogr')
+        LyrConvTool(self.textEdit).numbersForFlights(self.comboBox.currentText())

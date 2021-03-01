@@ -10,7 +10,7 @@ class LayerGetter:
     layer = None
     layername = None
     layerpath = None
-    drivername = None
+    driverName = None
     csvFileAttrs = {}
     actVecLyrDict = {}
 
@@ -19,6 +19,7 @@ class LayerGetter:
 
 
     def getActiveLayers(self, canvas):
+        LayerGetter.actVecLyrDict = {}
         layers = canvas.layers()  # по умолчанию только видимые слои
         for item in layers:
             if ((type(item) == QgsVectorLayer) and (item.geometryType() == 0)):
