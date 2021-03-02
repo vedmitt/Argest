@@ -21,7 +21,6 @@ class LyrConvTool:
     def __init__(self, textEdit):
         LyrConvTool.guiUtil = GuiElemIFace(textEdit)
 
-
     def createTempLayer(self, curLayer):
         # get layer from combobox
         lg = LayerGetter()
@@ -42,9 +41,11 @@ class LyrConvTool:
         if LyrConvTool.templayer is not None:
             LyrConvTool.guiUtil.setTextEditStyle('green', 'bold', 'Временный слой успешно создан!')
             LyrConvTool.guiUtil.setTextEditStyle('black', 'normal',
-                                                 'Количество точек во временном слое: ' + str(LyrConvTool.templayer.GetFeatureCount()))
+                                                 'Количество точек во временном слое: ' + str(
+                                                     LyrConvTool.templayer.GetFeatureCount()))
             try:
-                AzCalcTool(LyrConvTool.outDS, LyrConvTool.templayer, LyrConvTool.guiUtil).removeZeroPointsFromMemory(boolChecked)
+                AzCalcTool(LyrConvTool.outDS, LyrConvTool.templayer, LyrConvTool.guiUtil).removeZeroPointsFromMemory(
+                    boolChecked)
             except Exception as err:
                 LyrConvTool.guiUtil.setTextEditStyle('red', 'bold', '\nНе удалось удалить нулевые точки! ' + str(err))
 
@@ -53,7 +54,8 @@ class LyrConvTool:
             try:
                 self.saveTempLayerToFile(filename, filepath)
             except Exception as err:
-                LyrConvTool.guiUtil.setTextEditStyle('red', 'bold', '\nНе удалось сохранить/загрузить файл! ' + str(err))
+                LyrConvTool.guiUtil.setTextEditStyle('red', 'bold',
+                                                     '\nНе удалось сохранить/загрузить файл! ' + str(err))
         else:
             LyrConvTool.guiUtil.setTextEditStyle('red', 'bold', 'Введите данные в форму!\n')
 
@@ -69,15 +71,16 @@ class LyrConvTool:
             lg.getLayer(vlayerstr)
             if lg.driverName == "ESRI Shapefile":
                 self.layerToMemory(lg.layer, lg.driverName, lg.layerpath)
-                # TimeCalcUtil(LyrConvTool.guiUtil).setFlightNumber(LyrConvTool.outDS, LyrConvTool.templayer)
+
+                TimeCalcUtil(LyrConvTool.guiUtil).setFlightNumber(LyrConvTool.outDS, LyrConvTool.templayer)
+
                 fileName = 'test_' + str(randint(0000, 9999))
-                # filestr = fileName + '.shp'
-                # filePath = os.path.join('M:\Sourcetree\output\', filestr)
-                # self.saveToFile(fileName, filePath)
+                filePath = "M:/Sourcetree/output/" + fileName + ".shp"
+                self.saveToFile(fileName, filePath)
         except Exception as err:
             LyrConvTool.guiUtil.setTextEditStyle('red', 'bold', '\nНе удалось пронумеровать полеты! ' + str(err))
 
-##----------------------------------------------------------------------------------------------------
+    ##----------------------------------------------------------------------------------------------------
     def csvToMemory(self, layerpath, csvFileAttrs):
         # Parse a delimited text file of volcano data and create a shapefile
         # use a dictionary reader so we can access by field name
@@ -125,7 +128,6 @@ class LyrConvTool:
             # Create the feature in the layer (shapefile)
             LyrConvTool.templayer.CreateFeature(feature)
 
-
     def layerToMemory(self, layer, driverName, layerpath):
         LyrConvTool.inDS = ogr.GetDriverByName(driverName).Open(layerpath, 0)
 
@@ -133,7 +135,7 @@ class LyrConvTool:
         in_lyr = LyrConvTool.inDS.GetLayer()
 
         LyrConvTool.guiUtil.setTextEditStyle('black', 'normal',
-                                    'Количество точек в оригинальном слое: ' + str(layer.featureCount()))
+                                             'Количество точек в оригинальном слое: ' + str(layer.featureCount()))
 
         # create an output datasource in memory
         LyrConvTool.memDriver = ogr.GetDriverByName('MEMORY')
@@ -143,7 +145,6 @@ class LyrConvTool:
         LyrConvTool.templayer = LyrConvTool.outDS.CopyLayer(in_lyr, 'temp_layer', ['OVERWRITE=YES'])
 
         # del self.inDS
-
 
     def saveTempLayerToFile(self, filename, filepath):
         # -------- сохраняем результат в шейпфайл (код рабочий) ----------------------

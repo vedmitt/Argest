@@ -27,9 +27,7 @@ class AzCalcTool:
                 if feat is not None:
                     geom = feat.geometry()
                     if geom.GetX() == 0.0 and geom.GetY() == 0.0:
-                        AzCalcTool.templayer.DeleteFeature(feat.GetFID())
-                        AzCalcTool.outDS.ExecuteSQL('REPACK ' + AzCalcTool.templayer.GetName())
-                        # textEdit.append(str(feat.GetField("TIME")))
+                        self.delFeatByID(feat.GetFID())
             AzCalcTool.templayer.ResetReading()
 
             AzCalcTool.guiUtil.setTextEditStyle('green', 'bold', 'Нулевые точки успешно удалены!')
@@ -37,20 +35,32 @@ class AzCalcTool:
                                                 str(AzCalcTool.templayer.GetFeatureCount()))
         AzCalcTool.outDS.SyncToDisk()
 
-##------------------------------------------------------------------
+    def delFeatByID(self, ID):
+        AzCalcTool.templayer.DeleteFeature(ID)
+        AzCalcTool.outDS.ExecuteSQL('REPACK ' + AzCalcTool.templayer.GetName())
+
+    ##------------------------------------------------------------------
+
+    def tempLayerToListFeat(self, templayer):
+        feat_list = []
+        for i in range(templayer.GetFeatureCount()):
+            feat = templayer.GetNextFeature()
+            feat_list.append(feat)
+        templayer.ResetReading()
+        return feat_list
+
+    def sortListByLambda(self, mylist, fieldName):
+        mylist = sorted(mylist, key=lambda feature: feature.GetField(fieldName), reverse=False)
+        return mylist
 
     def mainAzimutCalc(self):
         global azimut_2
         AzCalcTool.guiUtil.setTextEditStyle('black', 'normal', '\nНачинаем удаление избыточных точек...')
-
-        feat_list = []
-        for i in range(AzCalcTool.templayer.GetFeatureCount()):
-            feat = AzCalcTool.templayer.GetNextFeature()
-            feat_list.append(feat)
-        AzCalcTool.templayer.ResetReading()
+        # переместим фичи из временного слоя в список
+        feat_list = self.tempLayerToListFeat(AzCalcTool.templayer)
 
         # отсортируем список по времени
-        feat_list = sorted(feat_list, key=lambda feature: feature.GetField("TIME"), reverse=False)
+        feat_list = self.sortListByLambda(feat_list, 'TIME')
 
         accuracy = 10
         flightList = []
@@ -64,11 +74,13 @@ class AzCalcTool:
             azimut_1 = AzimutMathUtil().azimutCalc([feat_list[i].geometry().GetX(), feat_list[i].geometry().GetY()],
                                                    [feat_list[i + 1].geometry().GetX(),
                                                     feat_list[i + 1].geometry().GetY()])
-            azimut_2 = AzimutMathUtil().azimutCalc([feat_list[i + 1].geometry().GetX(), feat_list[i + 1].geometry().GetY()],
-                                                   [feat_list[i + 2].geometry().GetX(), feat_list[i + 2].geometry().GetY()])
+            azimut_2 = AzimutMathUtil().azimutCalc(
+                [feat_list[i + 1].geometry().GetX(), feat_list[i + 1].geometry().GetY()],
+                [feat_list[i + 2].geometry().GetX(), feat_list[i + 2].geometry().GetY()])
 
             dist = AzimutMathUtil().distanceCalc([feat_list[i].geometry().GetX(), feat_list[i].geometry().GetY()],
-                                                 [feat_list[i + 1].geometry().GetX(), feat_list[i + 1].geometry().GetY()])
+                                                 [feat_list[i + 1].geometry().GetX(),
+                                                  feat_list[i + 1].geometry().GetY()])
 
             if math.fabs(azimut_1 - azimut_2) < accuracy:
                 if dist < min_dist:
@@ -82,7 +94,8 @@ class AzCalcTool:
                     az_sum = 0
                     for item in az_temp:
                         az_sum = az_sum + item
-                    avg_az_list.append(az_sum / len(az_temp))
+                    if len(az_temp) != 0:
+                        avg_az_list.append(az_sum / len(az_temp))
                 parts_list = [feat_list[i]]
                 az_temp = [azimut_1]
             i += 1
@@ -95,11 +108,10 @@ class AzCalcTool:
 
         # удаляем аномальные пути в начале полетов
         for item in bad_paths:
-            AzCalcTool.templayer.DeleteFeature(item)
-            AzCalcTool.outDS.ExecuteSQL('REPACK ' + AzCalcTool.templayer.GetName())
+            self.delFeatByID(item)
 
         AzCalcTool.guiUtil.setTextEditStyle('black', 'normal',
-                                              'Количество частей полетов: ' + str(len(flightList)))
+                                            'Количество частей полетов: ' + str(len(flightList)))
         # textEdit.append('Количество усредненных азимутов: ' + str(len(avg_az_list)))
         longest_path = max(len(elem) for elem in flightList)
         AzCalcTool.guiUtil.setTextEditStyle('black', 'normal', 'Самый длинный полет: ' + str(longest_path))
@@ -119,33 +131,10 @@ class AzCalcTool:
                     (avg_az_list[i] + 180) - target_az) < accuracy:
                 if len(flightList[i]) < 20:
                     for feat in flightList[i]:
-                        AzCalcTool.templayer.DeleteFeature(feat.GetFID())
-                        AzCalcTool.outDS.ExecuteSQL('REPACK ' + AzCalcTool.templayer.GetName())
+                        self.delFeatByID(feat.GetFID())
             else:
                 for feat in flightList[i]:
-                    AzCalcTool.templayer.DeleteFeature(feat.GetFID())
-                    AzCalcTool.outDS.ExecuteSQL('REPACK ' + AzCalcTool.templayer.GetName())
-
-        # for i in range(len(avg_az_list)):
-        #     textEdit.append(str(avg_az_list[i]))
-
-        # while i + 2 < len(avg_az_list):
-        #     if math.fabs(avg_az_list[i] - avg_az_list[i+1]) < 90 \
-        #             or math.fabs(avg_az_list[i+1] - avg_az_list[i+2]) < 90:
-        #         if len(flightList[i]) > len(flightList[i+1]) and len(flightList[i+2]) > len(flightList[i+1]):
-        #             for feat in flightList[i+1]:
-        #                 templayer.DeleteFeature(feat.GetFID())
-        #                 outDS.ExecuteSQL('REPACK ' + templayer.GetName())
-        #     else:
-        #         for feat in flightList[i]:
-        #             templayer.DeleteFeature(feat.GetFID())
-        #             outDS.ExecuteSQL('REPACK ' + templayer.GetName())
-
-        # for path in flightList:
-        #     if len(path) < longest_path / 2:
-        #         for feat in path:
-        #             templayer.DeleteFeature(feat.GetFID())
-        #             outDS.ExecuteSQL('REPACK ' + templayer.GetName())
+                    self.delFeatByID(feat.GetFID())
 
         AzCalcTool.guiUtil.setTextEditStyle('green', 'bold', 'Избыточные точки успешно удалены!')
         AzCalcTool.guiUtil.setTextEditStyle('black', 'normal', '\nКоличество точек в полученном слое: ' +

@@ -1,11 +1,9 @@
-import os
 from datetime import datetime
 
 import ogr
-from PyQt5.QtCore import QVariant
-from qgis._core import QgsFeatureRequest, QgsVectorDataProvider, QgsField
 
 from .AzCalcTool import AzCalcTool
+from .AzimutMathUtil import AzimutMathUtil
 
 
 class TimeCalcUtil:
@@ -17,57 +15,41 @@ class TimeCalcUtil:
     def setFlightNumber(self, dataSource, layer):
         TimeCalcUtil.guiUtil.setTextEditStyle('black', 'normal', 'Начинаем нумерацию профилей...')
 
-        # driver = ogr.GetDriverByName(drivername)
-        # # if os.path.exists(layerpath):
-        # #     driver.DeleteDataSource(layerpath)
-        #
-        # dataSource = driver.CreateDataSource(layerpath)
-        # layerDS = driver.Open(layerpath, 1)  # 0 means read-only. 1 means writeable.
-        #
-        # layer = dataSource.GetLayer()
-        # featureCount = layer.GetFeatureCount()
-
         # создаем новый столбец
         newField = 'FLIGHT_NUM'
-        layer.addField(ogr.FieldDefn(newField, ogr.OFTInteger))
+        fieldDefn = ogr.FieldDefn(newField, ogr.OFTInteger)
+        layer.CreateField(fieldDefn)
 
         # Переводим все фичи в список, сортируем по времени
+        az = AzCalcTool(dataSource, layer, None)
+        feat_list = az.tempLayerToListFeat(layer)
+        feat_list = az.sortListByLambda(feat_list, 'TIME')
 
         # Добавляем номера профилей
-        i = 1
-        boolYesNo = False
-        prevFeat = None
-        nextFeat = None
+        i = 0
+        flight_num = 1
 
-        for feat in layer:
-            if feat.id() == 0:
-                prevFeat = feat
-            elif feat.id() == 1:
-                nextFeat = feat
-                boolYesNo = self.timeSort(prevFeat, nextFeat)
+        while i+1 < len(feat_list):
+            # boolYesNo = self.timeSort(feat_list[i], feat_list[i+1])
+            dist = AzimutMathUtil().distanceCalc([feat_list[i].geometry().GetX(), feat_list[i].geometry().GetY()],
+                                                 [feat_list[i + 1].geometry().GetX(), feat_list[i + 1].geometry().GetY()])
+
+            # if (boolYesNo is False) and (feat_list[i+1] is not None):
+            if dist > 0.0003:
+                # добавить номер профиля (новый)
+                flight_num += 1
+                feat_list[i + 1].SetField(newField, flight_num)
+                layer.SetFeature(feat_list[i + 1])
             else:
-                prevFeat = nextFeat
-                nextFeat = feat
-                boolYesNo = self.timeSort(prevFeat, nextFeat)
-
-            if (boolYesNo is False) and (nextFeat is not None):
-                # add new flight number
-                prevFeat.SetField(newField, i)
-                nextFeat.SetField(newField, i)
-
-                # attrs = {fieldNum: i}
-                # self.changeFeatValues(layer, prevFeat.id(), attrs)
-                # self.changeFeatValues(layer, nextFeat.id(), attrs)
-            elif nextFeat is not None:
-                i += 1
-                # add new flight number
-                nextFeat.SetField(newField, i)
-
-                # attrs = {fieldNum: i}
-                # self.changeFeatValues(layer, nextFeat.id(), attrs)
+                # добавить номер профиля
+                feat_list[i].SetField(newField, flight_num)
+                feat_list[i + 1].SetField(newField, flight_num)
+                layer.SetFeature(feat_list[i])
+                layer.SetFeature(feat_list[i + 1])
+            i += 1
 
         dataSource.SyncToDisk()
-        TimeCalcUtil.guiUtil.setTextEditStyle('black', 'normal', 'Профилей выделено: ' + str(i))
+        TimeCalcUtil.guiUtil.setTextEditStyle('black', 'normal', 'Профилей выделено: ' + str(flight_num))
         TimeCalcUtil.guiUtil.setTextEditStyle('green', 'bold', 'Нумерация профилей завершена!')
 
     def timeSort(self, prevFeat, nextFeat):
