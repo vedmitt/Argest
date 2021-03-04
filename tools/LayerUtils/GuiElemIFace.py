@@ -10,6 +10,9 @@ class GuiElemIFace:
     def __init__(self, textEdit):
         GuiElemIFace.textEdit = textEdit
 
+    # def getTextEdit(self):
+    #     return GuiElemIFace.textEdit
+
     def setComboBox(self, comboBox, dictLyr):
         comboBox.clear()
         comboBox.addItems(dictLyr.keys())
