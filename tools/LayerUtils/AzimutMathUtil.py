@@ -31,3 +31,32 @@ class AzimutMathUtil:
         dY = x2[1] - x1[1]
         dist = math.sqrt((dX * dX) + (dY * dY))
         return dist
+
+    def averageDist(self, feat_list):
+        av_dist = 0
+        dist_list = []
+        i = 0
+        while i+1 < len(feat_list):
+            dist = self.distanceCalc([feat_list[i].geometry().GetX(), feat_list[i].geometry().GetY()],
+                                     [feat_list[i + 1].geometry().GetX(),
+                                      feat_list[i + 1].geometry().GetY()])
+            dist_list.append(dist)
+            i += 1
+
+        if len(dist_list) != 0:
+            for item in dist_list:
+                av_dist = av_dist + item
+
+            av_dist = av_dist / len(dist_list)
+        return av_dist
+
+    def averageAzimut(self, feat_list):
+        az_list = []
+        av_az = 0
+        for item in feat_list:
+            az_list.append(self.azimutCalc(item.geometry().GetX(), item.geometry().GetY()))
+        if len(az_list) != 0:
+            for i in az_list:
+                av_az = av_az + i
+            av_az = av_az / len(az_list)
+        return av_az
