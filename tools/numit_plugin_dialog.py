@@ -12,7 +12,7 @@ from qgis.utils import iface
 
 from .LayerUtils.GuiElemIFace import GuiElemIFace
 from .LayerUtils.LayerGetter import LayerGetter
-from .LayerUtils.LyrConvTool import LyrConvTool
+from .LayerUtils.LyrMainTool import LyrMainTool
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'numit_plugin.ui'))
@@ -41,4 +41,4 @@ class numit_pluginDialog(QtWidgets.QDialog, FORM_CLASS):
     def doResult(self):
         self.textEdit.setText('')
         # vlayer = QgsVectorLayer(lg.layerpath, lg.layername, 'ogr')
-        LyrConvTool(self.textEdit).numbersForFlights(self.comboBox.currentText())
+        LyrMainTool(self.textEdit).numbersForFlights(self.comboBox.currentText())

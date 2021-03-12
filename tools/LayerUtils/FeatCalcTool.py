@@ -2,42 +2,43 @@ import math
 from datetime import datetime
 
 from PyQt5.QtCore import QVariant
+from osgeo import ogr
 from qgis._core import QgsVectorDataProvider, QgsFeatureRequest, QgsField
 
 from .AzimutMathUtil import AzimutMathUtil
 
 
-class AzCalcTool:
+class FeatCalcTool:
     outDS = None
     templayer = None
     guiUtil = None
 
     def __init__(self, outDS, templayer, guiUtil):
-        AzCalcTool.outDS = outDS
-        AzCalcTool.templayer = templayer
-        AzCalcTool.guiUtil = guiUtil
+        FeatCalcTool.outDS = outDS
+        FeatCalcTool.templayer = templayer
+        FeatCalcTool.guiUtil = guiUtil
 
     def removeZeroPointsFromMemory(self, boolChecked):
         # далее работаем с временным слоем
         # -------- удаляем нулевые точки ---------------
         if boolChecked:
-            AzCalcTool.guiUtil.setTextEditStyle('black', 'normal', '\nНачинаем удаление нулевых точек...')
-            for i in range(AzCalcTool.templayer.GetFeatureCount()):
-                feat = AzCalcTool.templayer.GetNextFeature()
+            FeatCalcTool.guiUtil.setTextEditStyle('black', 'normal', '\nНачинаем удаление нулевых точек...')
+            for i in range(FeatCalcTool.templayer.GetFeatureCount()):
+                feat = FeatCalcTool.templayer.GetNextFeature()
                 if feat is not None:
                     geom = feat.geometry()
                     if geom.GetX() == 0.0 and geom.GetY() == 0.0:
                         self.delFeatByID(feat.GetFID())
-            AzCalcTool.templayer.ResetReading()
+            FeatCalcTool.templayer.ResetReading()
 
-            AzCalcTool.guiUtil.setTextEditStyle('green', 'bold', 'Нулевые точки успешно удалены!')
-            AzCalcTool.guiUtil.setTextEditStyle('black', 'normal', 'Количество точек после удаления нулевых: ' +
-                                                str(AzCalcTool.templayer.GetFeatureCount()))
-        AzCalcTool.outDS.SyncToDisk()
+            FeatCalcTool.guiUtil.setTextEditStyle('green', 'bold', 'Нулевые точки успешно удалены!')
+            FeatCalcTool.guiUtil.setTextEditStyle('black', 'normal', 'Количество точек после удаления нулевых: ' +
+                                                  str(FeatCalcTool.templayer.GetFeatureCount()))
+        FeatCalcTool.outDS.SyncToDisk()
 
     def delFeatByID(self, ID):
-        AzCalcTool.templayer.DeleteFeature(ID)
-        AzCalcTool.outDS.ExecuteSQL('REPACK ' + AzCalcTool.templayer.GetName())
+        FeatCalcTool.templayer.DeleteFeature(ID)
+        FeatCalcTool.outDS.ExecuteSQL('REPACK ' + FeatCalcTool.templayer.GetName())
 
     ##------------------------------------------------------------------
 
@@ -53,16 +54,32 @@ class AzCalcTool:
         mylist = sorted(mylist, key=lambda feature: feature.GetField(fieldName), reverse=False)
         return mylist
 
+    def createNewField(self, fieldName, fieldType):
+        fieldDefn = ogr.FieldDefn(fieldName, fieldType)
+        FeatCalcTool.templayer.CreateField(fieldDefn)
+
+    def setFieldValue(self, feature, fieldName, value):
+        if feature.GetField(fieldName) is None:
+            feature.SetField(fieldName, value)
+            FeatCalcTool.templayer.SetFeature(feature)
+
     def mainAzimutCalc(self):
         global azimut_2
-        AzCalcTool.guiUtil.setTextEditStyle('black', 'normal', '\nНачинаем удаление избыточных точек...')
+        FeatCalcTool.guiUtil.setTextEditStyle('black', 'normal', '\nНачинаем классификацию точек...')
+
+        # создаем новый столбец
+        fieldNum = "feat_num"
+        self.createNewField(fieldNum, ogr.OFTInteger)
+        fieldAz = "AZIMUTH"
+        self.createNewField(fieldAz, ogr.OFTReal)
+
         # переместим фичи из временного слоя в список
-        feat_list = self.tempLayerToListFeat(AzCalcTool.templayer)
+        feat_list = self.tempLayerToListFeat(FeatCalcTool.templayer)
 
         # отсортируем список по времени
         feat_list = self.sortListByLambda(feat_list, 'TIME')
 
-        accuracy = 10
+        accuracy = 5
         flightList = []
         parts_list = []
         min_dist = 6.966525707833812e-08
@@ -70,6 +87,9 @@ class AzCalcTool:
         i = 0
         az_temp = []
         avg_az_list = []
+
+        self.setFieldValue(feat_list[0], fieldAz, 0)
+
         while i + 2 < len(feat_list):
             azimut_1 = AzimutMathUtil().azimutCalc([feat_list[i].geometry().GetX(), feat_list[i].geometry().GetY()],
                                                    [feat_list[i + 1].geometry().GetX(),
@@ -77,6 +97,11 @@ class AzCalcTool:
             azimut_2 = AzimutMathUtil().azimutCalc(
                 [feat_list[i + 1].geometry().GetX(), feat_list[i + 1].geometry().GetY()],
                 [feat_list[i + 2].geometry().GetX(), feat_list[i + 2].geometry().GetY()])
+
+            # Запишем значение азимута и номера фактора в отдельный столбец
+            self.setFieldValue(feat_list[i], fieldNum, i)
+            self.setFieldValue(feat_list[i+1], fieldAz, azimut_1)
+            self.setFieldValue(feat_list[i+2], fieldAz, azimut_1)
 
             dist = AzimutMathUtil().distanceCalc([feat_list[i].geometry().GetX(), feat_list[i].geometry().GetY()],
                                                  [feat_list[i + 1].geometry().GetX(),
@@ -106,17 +131,14 @@ class AzCalcTool:
             avg_az_list.append(azimut_2)
             flightList.append(parts_list)
 
-        # удаляем аномальные пути в начале полетов
+        # удаляем аномальные пути в начале полетов (неудачный метод)
         for item in bad_paths:
             self.delFeatByID(item)
 
-        AzCalcTool.guiUtil.setTextEditStyle('black', 'normal',
+        FeatCalcTool.guiUtil.setTextEditStyle('black', 'normal',
                                             'Количество частей полетов: ' + str(len(flightList)))
-        # textEdit.append('Количество усредненных азимутов: ' + str(len(avg_az_list)))
         longest_path = max(len(elem) for elem in flightList)
-        AzCalcTool.guiUtil.setTextEditStyle('black', 'normal', 'Самый длинный полет: ' + str(longest_path))
-        # shortest_path = min(len(elem) for elem in flightList)
-        # textEdit.append('Самый короткий полет: ' + str(shortest_path))
+        FeatCalcTool.guiUtil.setTextEditStyle('black', 'normal', 'Самый длинный полет: ' + str(longest_path))
 
         i_longest = 0
         for path in flightList:
@@ -125,7 +147,7 @@ class AzCalcTool:
                 break
 
         target_az = avg_az_list[i_longest]
-        AzCalcTool.guiUtil.setTextEditStyle('black', 'normal', 'Целевой азимут: ' + str(target_az))
+        FeatCalcTool.guiUtil.setTextEditStyle('black', 'normal', 'Целевой азимут: ' + str(target_az))
         for i in range(len(avg_az_list)):
             if math.fabs(avg_az_list[i] - target_az) < accuracy or math.fabs(
                     (avg_az_list[i] + 180) - target_az) < accuracy:
@@ -136,7 +158,7 @@ class AzCalcTool:
                 for feat in flightList[i]:
                     self.delFeatByID(feat.GetFID())
 
-        AzCalcTool.guiUtil.setTextEditStyle('green', 'bold', 'Избыточные точки успешно удалены!')
-        AzCalcTool.guiUtil.setTextEditStyle('black', 'normal', '\nКоличество точек в полученном слое: ' +
-                                            str(AzCalcTool.templayer.GetFeatureCount()))
-        AzCalcTool.outDS.SyncToDisk()
+        FeatCalcTool.guiUtil.setTextEditStyle('green', 'bold', 'Точки успешно классифицированы!')
+        FeatCalcTool.guiUtil.setTextEditStyle('black', 'normal', '\nКоличество точек в полученном слое: ' +
+                                              str(FeatCalcTool.templayer.GetFeatureCount()))
+        FeatCalcTool.outDS.SyncToDisk()

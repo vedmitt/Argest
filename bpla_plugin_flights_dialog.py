@@ -39,8 +39,8 @@ from osgeo import ogr, osr
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
 from qgis.utils import iface
 
-from .tools.LayerUtils.AzCalcTool import AzCalcTool
-from .tools.LayerUtils.LyrConvTool import LyrConvTool
+from .tools.LayerUtils.FeatCalcTool import FeatCalcTool
+from .tools.LayerUtils.LyrMainTool import LyrMainTool
 from .tools.LayerUtils.LayerGetter import LayerGetter
 from .tools.LayerUtils.GuiElemIFace import GuiElemIFace
 
@@ -91,7 +91,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
     def doResult(self):
         self.textEdit.setText('')
 
-        lyr = LyrConvTool(self.textEdit)
+        lyr = LyrMainTool(self.textEdit)
         lyr.createTempLayer(self.comboBox.currentText())
 
         self.getFilepath()

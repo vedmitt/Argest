@@ -1,5 +1,7 @@
 import math
 
+from osgeo import ogr
+
 
 class AzimutMathUtil:
     def __init__(self):
@@ -36,7 +38,7 @@ class AzimutMathUtil:
         av_dist = 0
         dist_list = []
         i = 0
-        while i+1 < len(feat_list):
+        while i + 1 < len(feat_list):
             dist = self.distanceCalc([feat_list[i].geometry().GetX(), feat_list[i].geometry().GetY()],
                                      [feat_list[i + 1].geometry().GetX(),
                                       feat_list[i + 1].geometry().GetY()])
@@ -51,12 +53,46 @@ class AzimutMathUtil:
         return av_dist
 
     def averageAzimut(self, feat_list):
-        az_list = []
         av_az = 0
-        for item in feat_list:
-            az_list.append(self.azimutCalc(item.geometry().GetX(), item.geometry().GetY()))
+        az_list = []
+        i = 0
+        while i + 1 < len(feat_list):
+            dist = self.azimutCalc([feat_list[i].geometry().GetX(), feat_list[i].geometry().GetY()],
+                                   [feat_list[i + 1].geometry().GetX(),
+                                    feat_list[i + 1].geometry().GetY()])
+            az_list.append(dist)
+            i += 1
+
         if len(az_list) != 0:
-            for i in az_list:
-                av_az = av_az + i
+            for item in az_list:
+                av_az = av_az + item
+
             av_az = av_az / len(az_list)
         return av_az
+
+    def rotateTransform(self, w, h, deg_ccw):
+        sx = sy = 1
+        angle = math.radians(-deg_ccw)
+
+        cos_theta = math.cos(angle)
+        sin_theta = math.sin(angle)
+
+        scaled_w, scaled_h = w * sx, h * sy
+
+        new_w = int(math.ceil(math.fabs(cos_theta * scaled_w) + math.fabs(sin_theta * scaled_h)))
+        new_h = int(math.ceil(math.fabs(sin_theta * scaled_w) + math.fabs(cos_theta * scaled_h)))
+
+        cx = w / 2.
+        cy = h / 2.
+        tx = new_w / 2.
+        ty = new_h / 2.
+
+        a = cos_theta / sx
+        b = sin_theta / sx
+        c = cx - tx * a - ty * b
+        d = -sin_theta / sy
+        e = cos_theta / sy
+        f = cy - tx * d - ty * e
+
+        return [new_w, new_h]
+
