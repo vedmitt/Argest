@@ -65,7 +65,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.checkBox.setChecked(True)
         self.toolButton.clicked.connect(self.getSaveFileName)
         self.pushButton.clicked.connect(self.doResult)
-
+        self.toolButton_plan.clicked.connect(self.getFolderName)
 
     def initActiveLayersComboBox(self):
         lg = LayerGetter()
@@ -77,6 +77,9 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         fn = dlg.getSaveFileName(self, 'Save file', r'M:\Sourcetree\output\test', filter='*.shp')[0]
         self.lineEdit.setText(fn)
 
+    def getFolderName(self):
+        directory = str(QtWidgets.QFileDialog.getExistingDirectory())
+        self.lineEdit_plan.setText('{}'.format(directory))
 
     def getFilepath(self):
         # get file name from line edit
@@ -87,16 +90,14 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             fn = fn.split('.shp')
             self.filename = fn[0]
 
-
     def doResult(self):
         self.textEdit.setText('')
 
         lyr = LyrMainTool(self.textEdit)
-        lyr.createTempLayer(self.comboBox.currentText())
+        lyr.createOneFile(self.lineEdit_plan.text())
 
-        self.getFilepath()
-
-        lyr.removeZeroPoints(self.checkBox.isChecked())
-        lyr.mainAzimutCalc()
-
-        lyr.saveToFile(self.filename, self.filepath)
+        # lyr.createTempLayer(self.comboBox.currentText())  # выясняем драйвер исходного слоя
+        # self.getFilepath()
+        # lyr.removeZeroPoints(self.checkBox.isChecked())
+        # lyr.mainAzimutCalc()
+        # lyr.saveToFile(self.filename, self.filepath)

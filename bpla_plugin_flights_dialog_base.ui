@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>395</width>
-    <height>524</height>
+    <height>504</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -48,6 +48,27 @@
        <property name="icon">
         <iconset>
          <normaloff>icon_reload.png</normaloff>icon_reload.png</iconset>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_3">
+     <item>
+      <widget class="QLabel" name="label_4">
+       <property name="text">
+        <string>Выберите папку:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="lineEdit_plan"/>
+     </item>
+     <item>
+      <widget class="QToolButton" name="toolButton_plan">
+       <property name="text">
+        <string>...</string>
        </property>
       </widget>
      </item>
