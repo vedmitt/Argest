@@ -22,7 +22,7 @@ class LyrMainTool:
     def __init__(self, textEdit):
         LyrMainTool.guiUtil = GuiElemIFace(textEdit)
 
-    def createOneFile(self, folderPath):
+    def createOnePlanLayer(self, folderPath):
         try:
             driverName = 'ESRI Shapefile'
             feat_list = None
@@ -36,53 +36,32 @@ class LyrMainTool:
                                 filename, file_extension = os.path.splitext(file)
                                 if file_extension == ".shp":
                                     filepath = folderPath + '/' + entry.name + '/' + file.name
-                                    ftool = FeatCalcTool(None, None, None)
+                                    ftool = FeatCalcTool(LyrMainTool.outDS, LyrMainTool.templayer, LyrMainTool.guiUtil)
                                     # copy the first layer to temp
                                     if i == 0:
-                                        # LyrMainTool.guiUtil.setTextEditStyle('black', 'normal', firstFilePath)
                                         self.layerToMemory(driverName, filepath)
                                         feat_list = ftool.tempLayerToListFeat(LyrMainTool.templayer)
                                         i += 1
                                     elif i > 0:
-                                        inDS = ogr.GetDriverByName(driverName).Open(filepath, 0)
-                                        in_lyr = LyrMainTool.inDS.GetLayer()
-                                        feat_list.append(ftool.tempLayerToListFeat(in_lyr))
+                                        newDS = ogr.GetDriverByName(driverName).Open(filepath, 0)
+                                        new_lyr = newDS.GetLayer()
+                                        feat_list.append(ftool.tempLayerToListFeat(new_lyr))
+                                        for feature in new_lyr:
+                                            LyrMainTool.templayer.CreateFeature(feature)
 
             # save all features in list to file
-            fileName = 'basic_outline_' + str(randint(0000, 9999))
-            filePath = folderPath + '/' + fileName + ".shp"
-            LyrMainTool.guiUtil.setTextEditStyle('black', 'normal', filePath)
-            self.saveToFile(fileName, filePath)
+            LyrMainTool.outDS.SyncToDisk()
+            # fileName = 'basic_outline_' + str(randint(0000, 9999))
+            # filePath = folderPath + '/' + fileName + ".shp"
+            # LyrMainTool.guiUtil.setTextEditStyle('black', 'normal', filePath)
+            # self.saveToFile(fileName, filePath)
+
+            av_az = AzimutMathUtil().averageAzimut(feat_list)
+            LyrMainTool.guiUtil.setTextEditStyle('black', 'normal', str(av_az))
 
         except Exception as err:
             LyrMainTool.guiUtil.setTextEditStyle('red', 'bold', '\nНе удалось открыть папку с файлами! ' + str(err))
 
-    def mergeFiles(self, directory, folderPath, fileName):
-        try:
-            outputMergefn = folderPath + '/' + fileName
-            FileEndsWith = '.shp'
-            geometrytype = ogr.wkbMultiPoint
-            ptdriver = ogr.GetDriverByName('ESRI Shapefile')
-
-            # if os.path.exists(outputMergefn):
-            #     ptdriver.DeleteDataSource(outputMergefn)
-            out_ds = ptdriver.CreateDataSource(outputMergefn)
-            out_layer = out_ds.CreateLayer(outputMergefn, geom_type=geometrytype)
-
-            filelist = os.listdir(directory)
-            for file in filelist:
-                if file.endswith(FileEndsWith):
-                    ds = ogr.Open(directory + file)
-                    if ds is None:
-                        print("This is None")
-                    lyr = ds.GetLayer()
-                    for feat in lyr:
-                        out_feat = ogr.Feature(out_layer.GetLayerDefn())
-                        out_feat.SetGeometry(feat.GetGeometryRef().Clone())
-                        out_layer.CreateFeature(out_feat)
-                        out_layer.SyncToDisk()
-        except Exception as err:
-            LyrMainTool.guiUtil.setTextEditStyle('red', 'bold', '\nНе удалось объединить файлы! ' + str(err))
 
     def createTempLayer(self, curLayer):
         # get layer from combobox
@@ -191,23 +170,26 @@ class LyrMainTool:
             LyrMainTool.templayer.CreateFeature(feature)
 
     def layerToMemory(self, driverName, layerpath):
-        LyrMainTool.inDS = ogr.GetDriverByName(driverName).Open(layerpath, 0)
+        try:
+            LyrMainTool.inDS = ogr.GetDriverByName(driverName).Open(layerpath, 0)
 
-        # Get the input shapefile
-        in_lyr = LyrMainTool.inDS.GetLayer()
+            # Get the input shapefile
+            in_lyr = LyrMainTool.inDS.GetLayer()
 
-        # LyrMainTool.guiUtil.setTextEditStyle('black', 'normal',
-        #                                      'Количество точек в оригинальном слое: ' + str(in_lyr.featureCount()))
+            # LyrMainTool.guiUtil.setTextEditStyle('black', 'normal', 'Количество точек в оригинальном слое: ' + str(
+            # in_lyr.featureCount()))
 
-        # create an output datasource in memory
-        LyrMainTool.memDriver = ogr.GetDriverByName('MEMORY')
-        LyrMainTool.outDS = LyrMainTool.memDriver.CreateDataSource('memData')
-        tmpDS = LyrMainTool.memDriver.Open('memData', 1)
+            # create an output datasource in memory
+            LyrMainTool.memDriver = ogr.GetDriverByName('MEMORY')
+            LyrMainTool.outDS = LyrMainTool.memDriver.CreateDataSource('memData')
+            tmpDS = LyrMainTool.memDriver.Open('memData', 1)
 
-        LyrMainTool.templayer = LyrMainTool.outDS.CopyLayer(in_lyr, 'temp_layer', ['OVERWRITE=YES'])
-        LyrMainTool.guiUtil.setTextEditStyle('green', 'bold', 'Временный слой успешно создан!')
-        # del self.inDS
-        # return LyrMainTool.templayer
+            LyrMainTool.templayer = LyrMainTool.outDS.CopyLayer(in_lyr, 'temp_layer', ['OVERWRITE=YES'])
+            LyrMainTool.guiUtil.setTextEditStyle('green', 'bold', 'Временный слой успешно создан!')
+            # del self.inDS
+            # return LyrMainTool.templayer
+        except Exception as err:
+            LyrMainTool.guiUtil.setTextEditStyle('red', 'bold', '\nНе удалось создать временный слой! ' + str(err))
 
     def saveTempLayerToFile(self, filename, filepath):
         # -------- сохраняем результат в шейпфайл (код рабочий) ----------------------

@@ -65,12 +65,18 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.checkBox.setChecked(True)
         self.toolButton.clicked.connect(self.getSaveFileName)
         self.pushButton.clicked.connect(self.doResult)
+
         self.toolButton_plan.clicked.connect(self.getFolderName)
+        self.toolButton_cbreload_2.setIcon(QIcon(':/plugins/bpla_plugin_flights/icons/icon_reload.png'))
+        self.toolButton_cbreload_2.clicked.connect(self.initActiveLayersComboBox)
+        self.lineEdit.setText(r'M:\Sourcetree\output\test_1.shp')
 
     def initActiveLayersComboBox(self):
         lg = LayerGetter()
         self.dictLyr = lg.getActiveLayers(iface.mapCanvas())
         GuiElemIFace(None).setComboBox(self.comboBox, self.dictLyr)
+        del self.dictLyr[self.comboBox.currentText()]
+        GuiElemIFace(None).setComboBox(self.comboBox_2, self.dictLyr)
 
     def getSaveFileName(self):
         dlg = QtWidgets.QFileDialog(self)
@@ -94,10 +100,13 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.textEdit.setText('')
 
         lyr = LyrMainTool(self.textEdit)
-        lyr.createOneFile(self.lineEdit_plan.text())
+        if self.lineEdit_plan.text() != '':
+            lyr.createOnePlanLayer(self.lineEdit_plan.text())
+        else:
+            lyr.createTempLayer(self.comboBox_2.currentText())
 
-        # lyr.createTempLayer(self.comboBox.currentText())  # выясняем драйвер исходного слоя
-        # self.getFilepath()
-        # lyr.removeZeroPoints(self.checkBox.isChecked())
-        # lyr.mainAzimutCalc()
-        # lyr.saveToFile(self.filename, self.filepath)
+            lyr.createTempLayer(self.comboBox.currentText())  # выясняем драйвер исходного слоя
+            self.getFilepath()
+            lyr.removeZeroPoints(self.checkBox.isChecked())
+            # lyr.mainAzimutCalc()
+            lyr.saveToFile(self.filename, self.filepath)
