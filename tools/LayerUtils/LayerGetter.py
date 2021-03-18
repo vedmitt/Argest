@@ -7,20 +7,24 @@ global actVecLyrDict, layer
 
 class LayerGetter:
 
-    layer = None
-    layername = None
-    layerpath = None
-    driverName = None
-    csvFileAttrs = {}
+    # layer = None
+    # layername = None
+    # layerpath = None
+    # driverName = None
+    # csvFileAttrs = {}
     actVecLyrDict = {}
 
     def __init__(self):
-        pass
+        self.layer = None
+        self.layername = None
+        self.layerpath = None
+        self.driverName = None
+        self.csvFileAttrs = {}
 
 
-    def getActiveLayers(self, canvas):
+    def getActiveLayers(self):
         LayerGetter.actVecLyrDict = {}
-        layers = canvas.layers()  # по умолчанию только видимые слои
+        layers = iface.mapCanvas().layers()  # по умолчанию только видимые слои
         for item in layers:
             if ((type(item) == QgsVectorLayer) and (item.geometryType() == 0)):
                 # setdefault добавляет элементы с проверкой на повторяющиеся
@@ -30,23 +34,23 @@ class LayerGetter:
 
 
     def getLayer(self, layerstr):
-        LayerGetter.layer = LayerGetter.actVecLyrDict.get(layerstr)
+        self.layer = self.getActiveLayers().get(layerstr)
 
-        if LayerGetter.layer is not None:
-            LayerGetter.layername = LayerGetter.layer.name()
-            LayerGetter.driverName = LayerGetter.layer.dataProvider().storageType()
-            cur_lyr_path = LayerGetter.layer.dataProvider().dataSourceUri()
+        if self.layer is not None:
+            self.layername = self.layer.name()
+            self.driverName = self.layer.dataProvider().storageType()
+            cur_lyr_path = self.layer.dataProvider().dataSourceUri()
 
-            if LayerGetter.driverName == 'ESRI Shapefile':
+            if self.driverName == 'ESRI Shapefile':
                 char_arr = cur_lyr_path.split('|')
-                LayerGetter.layerpath = char_arr[0]
+                self.layerpath = char_arr[0]
 
-            elif LayerGetter.driverName == 'Delimited text file':
+            elif self.driverName == 'Delimited text file':
                 fn = cur_lyr_path.split('?')
                 fn1 = fn[0].split('///')
-                LayerGetter.layerpath = fn1[1]
+                self.layerpath = fn1[1]
                 attr = fn[1].split('&')
                 for i in range(len(attr)):
                     elem = attr[i].split('=')
-                    LayerGetter.csvFileAttrs.setdefault(elem[0], elem[1])
+                    self.csvFileAttrs.setdefault(elem[0], elem[1])
 

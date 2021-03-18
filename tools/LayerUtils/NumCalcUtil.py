@@ -9,39 +9,39 @@ from .AzimutMathUtil import AzimutMathUtil
 
 
 class NumCalcUtil:
-    guiUtil = None
-    layer = None
-    feat_list = None
-    newField = 'FLIGHT_NUM'
-    extent = None
-    dataSource = None
+    # guiUtil = None
+    # layer = None
+    # feat_list = None
+    # newField = 'FLIGHT_NUM'
+    # extent = None
+    # dataSource = None
 
     def __init__(self, guiUtil):
-        NumCalcUtil.guiUtil = guiUtil
+        self.guiUtil = guiUtil
 
     def setFlightNumber(self, dataSource, layer):
-        NumCalcUtil.guiUtil.setTextEditStyle('black', 'normal', 'Начинаем нумерацию профилей...')
-        NumCalcUtil.layer = layer
-        NumCalcUtil.dataSource = dataSource
+        self.guiUtil.setOutputStyle('black', 'normal', 'Начинаем нумерацию профилей...')
+        self.layer = layer
+        self.dataSource = dataSource
 
         # создаем новый столбец
-        fieldDefn = ogr.FieldDefn(NumCalcUtil.newField, ogr.OFTInteger)
-        NumCalcUtil.layer.CreateField(fieldDefn)
+        fieldDefn = ogr.FieldDefn(self.newField, ogr.OFTInteger)
+        self.layer.CreateField(fieldDefn)
 
         # Переводим все фичи в список, сортируем по времени
-        az = FeatCalcTool(NumCalcUtil.dataSource, NumCalcUtil.layer, None)
-        NumCalcUtil.feat_list = az.tempLayerToListFeat(NumCalcUtil.layer)
-        NumCalcUtil.feat_list = az.sortListByLambda(NumCalcUtil.feat_list, 'TIME')
+        az = FeatCalcTool(self.dataSource, self.layer, None)
+        self.feat_list = az.tempLayerToListFeat(self.layer)
+        self.feat_list = az.sortListByLambda(self.feat_list, 'TIME')
 
         # найдем средний азимут первых 10 точек
-        av_az = AzimutMathUtil().averageAzimut(NumCalcUtil.feat_list[:10])
-        NumCalcUtil.guiUtil.textEdit.append(str(av_az))
+        av_az = AzimutMathUtil().averageAzimut(self.feat_list[:10])
+        self.guiUtil.textEdit.append(str(av_az))
 
         # повернем фигуру так чтобы профиля стали вертикальными
-        NumCalcUtil.feat_list = self.rotationToList(av_az, NumCalcUtil.feat_list)
+        self.feat_list = self.rotationToList(av_az, self.feat_list)
 
-        av_az = AzimutMathUtil().averageAzimut(NumCalcUtil.feat_list[:10])
-        NumCalcUtil.guiUtil.textEdit.append(str(av_az))
+        av_az = AzimutMathUtil().averageAzimut(self.feat_list[:10])
+        self.guiUtil.textEdit.append(str(av_az))
 
         # Переносим начало координат в левый верхний угол
 
@@ -55,7 +55,7 @@ class NumCalcUtil:
         # flight_num = 2
         #
         # dist = 0.0006
-        # while len(prev_path) < len(NumCalcUtil.feat_list):
+        # while len(prev_path) < len(self.feat_list):
         #     the_path = self.findThePath(flight_num, prev_path, dist)
         #     # TimeCalcUtil.guiUtil.textEdit.append(str(len(the_path)))
         #     if len(the_path) != 0:
@@ -63,9 +63,9 @@ class NumCalcUtil:
         #         flight_num += 1
         #     dist += 0.00035
 
-        NumCalcUtil.dataSource.SyncToDisk()
-        # NumCalcUtil.guiUtil.setTextEditStyle('black', 'normal', 'Профилей выделено: ' + str(flight_num))
-        NumCalcUtil.guiUtil.setTextEditStyle('green', 'bold', 'Нумерация профилей завершена!')
+        self.dataSource.SyncToDisk()
+        # self.guiUtil.setTextEditStyle('black', 'normal', 'Профилей выделено: ' + str(flight_num))
+        self.guiUtil.setOutputStyle('green', 'bold', 'Нумерация профилей завершена!')
 
     def findThePath(self, flight_num, prev_path, radius):
         the_path = []
@@ -75,12 +75,12 @@ class NumCalcUtil:
         else:
             valueY = prev_path[0].geometry().GetY()
 
-        for i in range(len(NumCalcUtil.feat_list)):
-            cur_geom = NumCalcUtil.feat_list[i].geometry()
+        for i in range(len(self.feat_list)):
+            cur_geom = self.feat_list[i].geometry()
             if math.fabs(cur_geom.GetY() - valueY) < radius \
-                    and NumCalcUtil.feat_list[i].GetField(NumCalcUtil.newField) is None:
-                the_path.append(NumCalcUtil.feat_list[i])
-                FeatCalcTool(NumCalcUtil.dataSource, NumCalcUtil.layer, NumCalcUtil.guiUtil).setFieldValue(NumCalcUtil.feat_list[i], NumCalcUtil.newField, flight_num)
+                    and self.feat_list[i].GetField(self.newField) is None:
+                the_path.append(self.feat_list[i])
+                FeatCalcTool(self.dataSource, self.layer, self.guiUtil).setFieldValue(self.feat_list[i], self.newField, flight_num)
             # else:
             #     AzCalcTool(dataSource, layer, None).delFeatByID(feat_list[i].GetFID())
         return the_path
@@ -96,7 +96,7 @@ class NumCalcUtil:
             for item in feat_list:
                 new_geom = AzimutMathUtil().rotateTransform(item.geometry().GetX(), item.geometry().GetY(), fix_deg)
                 # присваиваем новую геометрию точкам
-                NumCalcUtil.guiUtil.textEdit.append(str(new_geom[0]) + ' ' + str(new_geom[1]))
+                self.guiUtil.textEdit.append(str(new_geom[0]) + ' ' + str(new_geom[1]))
                 # create the WKT for the feature using Python string formatting
                 wkt = "POINT(%f %f)" % (float(new_geom[0]),
                                         float(new_geom[1]))
@@ -104,7 +104,7 @@ class NumCalcUtil:
                 point = ogr.CreateGeometryFromWkt(wkt)
                 # Set the feature geometry using the point
                 item.SetGeometry(point)
-                # NumCalcUtil.layer.SetFeature(item)
+                # self.layer.SetFeature(item)
         return feat_list
 
     def timeSort(self, prevFeat, nextFeat):
@@ -121,8 +121,8 @@ class NumCalcUtil:
         #         (nextDataTime.time().minute - prevDataTime.time().minute) > 3 or \
         #         (nextDataTime.time().second - prevDataTime.time().second) > 10:
         elif math.fabs(int(nextTime) - int(prevTime)) > 1:
-            NumCalcUtil.guiUtil.textEdit.append(str(nextTime))
-            NumCalcUtil.guiUtil.textEdit.append(str(prevTime))
+            self.guiUtil.textEdit.append(str(nextTime))
+            self.guiUtil.textEdit.append(str(prevTime))
             return True
         else:
             return False

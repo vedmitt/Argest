@@ -5,13 +5,8 @@ from .LayerGetter import LayerGetter
 
 
 class GuiElemIFace:
-    textEdit = None
-
     def __init__(self, textEdit):
-        GuiElemIFace.textEdit = textEdit
-
-    # def getTextEdit(self):
-    #     return GuiElemIFace.textEdit
+        self.textEdit = textEdit
 
     def setComboBox(self, comboBox, dictLyr):
         comboBox.clear()
@@ -22,9 +17,9 @@ class GuiElemIFace:
         # show our new layer in qgis
         layer = iface.addVectorLayer(filepath, filename, typeOfFile)
         if not layer:
-            self.setTextEditStyle('red', 'bold', 'Не удалось загрузить слой в оболочку!\n')
+            self.setOutputStyle('red', 'bold', 'Не удалось загрузить слой в оболочку!\n')
 
-    def setTextEditStyle(self, color, weight, textstr=''):
+    def setOutputStyle(self, color, weight, textstr=''):
         colors = {
             'black': QColor(0, 0, 0),
             'red': QColor(255, 0, 0),
@@ -34,7 +29,7 @@ class GuiElemIFace:
             'normal': 1,
             'bold': QFont.Bold
         }
-        if GuiElemIFace.textEdit is not None:
-            GuiElemIFace.textEdit.setTextColor(colors.get(color))
-            GuiElemIFace.textEdit.setFontWeight(weights.get(weight))
-            GuiElemIFace.textEdit.append(textstr)
+        if self.textEdit is not None:
+            self.textEdit.setTextColor(colors.get(color))
+            self.textEdit.setFontWeight(weights.get(weight))
+            self.textEdit.append(textstr)

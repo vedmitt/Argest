@@ -21,26 +21,18 @@
  *                                                                         *
  ***************************************************************************/
 """
-import csv
-import math
 import os
-from datetime import datetime
-from random import random, randint
 
-from PyQt5.QtCore import QVariant
 from PyQt5.QtGui import QIcon
 from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
 from PyQt5.QtGui import *
-from qgis.core import *
-
-from osgeo import ogr, osr
 
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
 from qgis.utils import iface
 
 from .tools.LayerUtils.FeatCalcTool import FeatCalcTool
-from .tools.LayerUtils.LyrMainTool import LyrMainTool
+from .tools.LayerUtils.MainIFace import MainIFace
 from .tools.LayerUtils.LayerGetter import LayerGetter
 from .tools.LayerUtils.GuiElemIFace import GuiElemIFace
 
@@ -65,27 +57,31 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.checkBox.setChecked(True)
         self.toolButton.clicked.connect(self.getSaveFileName)
         self.pushButton.clicked.connect(self.doResult)
-
-        self.toolButton_plan.clicked.connect(self.getFolderName)
-        self.toolButton_cbreload_2.setIcon(QIcon(':/plugins/bpla_plugin_flights/icons/icon_reload.png'))
-        self.toolButton_cbreload_2.clicked.connect(self.initActiveLayersComboBox)
         self.lineEdit.setText(r'M:\Sourcetree\output\test_1.shp')
+
+        # self.toolButton_plan.clicked.connect(self.getFolderName)
+        # self.toolButton_cbreload_2.setIcon(QIcon(':/plugins/bpla_plugin_flights/icons/icon_reload.png'))
+        # self.toolButton_cbreload_2.clicked.connect(self.initActiveLayersComboBox_2)
 
     def initActiveLayersComboBox(self):
         lg = LayerGetter()
-        self.dictLyr = lg.getActiveLayers(iface.mapCanvas())
-        GuiElemIFace(None).setComboBox(self.comboBox, self.dictLyr)
-        del self.dictLyr[self.comboBox.currentText()]
-        GuiElemIFace(None).setComboBox(self.comboBox_2, self.dictLyr)
+        dictLyr = lg.getActiveLayers()
+        GuiElemIFace(None).setComboBox(self.comboBox, dictLyr)
+
+    # def initActiveLayersComboBox_2(self):
+    #     lg = LayerGetter()
+    #     dictLyr = lg.getActiveLayers(iface.mapCanvas())
+    #     del dictLyr[self.comboBox.currentText()]
+    #     GuiElemIFace(None).setComboBox(self.comboBox_2, dictLyr)
 
     def getSaveFileName(self):
         dlg = QtWidgets.QFileDialog(self)
         fn = dlg.getSaveFileName(self, 'Save file', r'M:\Sourcetree\output\test', filter='*.shp')[0]
         self.lineEdit.setText(fn)
 
-    def getFolderName(self):
-        directory = str(QtWidgets.QFileDialog.getExistingDirectory())
-        self.lineEdit_plan.setText('{}'.format(directory))
+    # def getFolderName(self):
+    #     directory = str(QtWidgets.QFileDialog.getExistingDirectory())
+    #     self.lineEdit_plan.setText('{}'.format(directory))
 
     def getFilepath(self):
         # get file name from line edit
@@ -99,14 +95,22 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
     def doResult(self):
         self.textEdit.setText('')
 
-        lyr = LyrMainTool(self.textEdit)
-        if self.lineEdit_plan.text() != '':
-            lyr.createOnePlanLayer(self.lineEdit_plan.text())
-        else:
-            lyr.createTempLayer(self.comboBox_2.currentText())
+        # lyr = LyrMainTool()
+        # lyr.guiUtil = GuiElemIFace(self.textEdit)
+        # if self.lineEdit_plan.text() != '':
+        #     lyr.createOnePlanLayer(self.lineEdit_plan.text())
+        # else:
+        #     lyr.createTempLayer(self.comboBox_2.currentText())
 
-            lyr.createTempLayer(self.comboBox.currentText())  # выясняем драйвер исходного слоя
-            self.getFilepath()
-            lyr.removeZeroPoints(self.checkBox.isChecked())
-            # lyr.mainAzimutCalc()
-            lyr.saveToFile(self.filename, self.filepath)
+        lyr2 = MainIFace(GuiElemIFace(self.textEdit))
+        lg = LayerGetter()
+        lg.getLayer(self.comboBox.currentText())
+        createTempLyrDeco = lyr2.exceptionsDecorator(lyr2.createTempLayer(lg),
+                                                     '\nНе удалось создать временный слой! ')
+        self.getFilepath()
+        remZeroPointsDeco = lyr2.exceptionsDecorator(lyr2.removeZeroPoints(self.checkBox.isChecked()),
+                                                     '\nНе удалось удалить нулевые точки! ')
+        # # lyr.mainAzimutCalc()
+        saveFileDeco = lyr2.exceptionsDecorator(lyr2.saveToFile(self.filename, self.filepath),
+                                                '\nНе удалось сохранить/загрузить файл! ')
+        # lyr2.saveToFile(self.filename, self.filepath)

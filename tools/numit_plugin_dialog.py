@@ -12,7 +12,7 @@ from qgis.utils import iface
 
 from .LayerUtils.GuiElemIFace import GuiElemIFace
 from .LayerUtils.LayerGetter import LayerGetter
-from .LayerUtils.LyrMainTool import LyrMainTool
+from .LayerUtils.MainIFace import MainIFace
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'numit_plugin.ui'))
@@ -35,10 +35,10 @@ class numit_pluginDialog(QtWidgets.QDialog, FORM_CLASS):
 
     def initActiveLayersComboBox(self):
         lg = LayerGetter()
-        self.dictLyr = lg.getActiveLayers(iface.mapCanvas())
+        self.dictLyr = lg.getActiveLayers()
         GuiElemIFace(None).setComboBox(self.comboBox, self.dictLyr)
 
     def doResult(self):
         self.textEdit.setText('')
         # vlayer = QgsVectorLayer(lg.layerpath, lg.layername, 'ogr')
-        LyrMainTool(self.textEdit).numbersForFlights(self.comboBox.currentText())
+        MainIFace(None).numbersForFlights(self.comboBox.currentText())
