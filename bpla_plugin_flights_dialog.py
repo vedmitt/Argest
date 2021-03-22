@@ -28,6 +28,8 @@ from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
 from PyQt5.QtGui import *
 
+from time import perf_counter
+
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
 from qgis.utils import iface
 
@@ -94,6 +96,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
 
     def doResult(self):
         self.textEdit.setText('')
+        start = perf_counter()
 
         # lyr = LyrMainTool()
         # lyr.guiUtil = GuiElemIFace(self.textEdit)
@@ -111,6 +114,9 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         remZeroPointsDeco = lyr2.exceptionsDecorator(lyr2.removeZeroPoints(self.checkBox.isChecked()),
                                                      '\nНе удалось удалить нулевые точки! ')
         # # lyr.mainAzimutCalc()
+        mainAlgorithmDeco = lyr2.exceptionsDecorator(lyr2.mainAzimutCalc(), '\nНе удалось классифицировать точки! ')
         saveFileDeco = lyr2.exceptionsDecorator(lyr2.saveToFile(self.filename, self.filepath),
                                                 '\nНе удалось сохранить/загрузить файл! ')
-        # lyr2.saveToFile(self.filename, self.filepath)
+
+        end = perf_counter()
+        GuiElemIFace(self.textEdit).setOutputStyle('black', 'normal', 'Время работы плагина: ' + str(end - start))

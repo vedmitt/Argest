@@ -1,5 +1,7 @@
 import math
 from datetime import datetime
+from statistics import mode
+import numpy as np
 
 from PyQt5.QtCore import QVariant
 from osgeo import ogr
@@ -64,7 +66,7 @@ class FeatCalcTool:
             self.templayer.SetFeature(feature)
 
     def mainAzimutCalc(self):
-        global azimut_2
+        global azimuth_2
         self.guiUtil.setOutputStyle('black', 'normal', '\nНачинаем классификацию точек...')
 
         # создаем новый столбец
@@ -72,6 +74,8 @@ class FeatCalcTool:
         self.createNewField(fieldNum, ogr.OFTInteger)
         fieldAz = "AZIMUTH"
         self.createNewField(fieldAz, ogr.OFTReal)
+        fieldClass = "NUM_FLIGHT"
+        self.createNewField(fieldClass, ogr.OFTInteger)
 
         # переместим фичи из временного слоя в список
         feat_list = self.tempLayerToListFeat(self.templayer)
@@ -80,85 +84,99 @@ class FeatCalcTool:
         feat_list = self.sortListByLambda(feat_list, 'TIME')
 
         accuracy = 5
+        i = 0
+        numFlight = 1
+        az_all_set = []
         flightList = []
         parts_list = []
-        min_dist = 6.966525707833812e-08
-        bad_paths = []
-        i = 0
         az_temp = []
         avg_az_list = []
 
-        self.setFieldValue(feat_list[0], fieldAz, 0)
+        self.setFieldValue(feat_list[0], fieldAz, 0)  # the first elem of azimuth field
 
-        while i + 2 < len(feat_list):
-            azimut_1 = AzimutMathUtil().azimutCalc([feat_list[i].geometry().GetX(), feat_list[i].geometry().GetY()],
-                                                   [feat_list[i + 1].geometry().GetX(),
-                                                    feat_list[i + 1].geometry().GetY()])
-            azimut_2 = AzimutMathUtil().azimutCalc(
-                [feat_list[i + 1].geometry().GetX(), feat_list[i + 1].geometry().GetY()],
-                [feat_list[i + 2].geometry().GetX(), feat_list[i + 2].geometry().GetY()])
+        while i + 9 < len(feat_list):
+            # azimuth_1 = AzimutMathUtil().azimutCalc([feat_list[i].geometry().GetX(), feat_list[i].geometry().GetY()],
+            #                                         [feat_list[i + 1].geometry().GetX(),
+            #                                          feat_list[i + 1].geometry().GetY()])
+            # azimuth_2 = AzimutMathUtil().azimutCalc(
+            #     [feat_list[i + 1].geometry().GetX(), feat_list[i + 1].geometry().GetY()],
+            #     [feat_list[i + 2].geometry().GetX(), feat_list[i + 2].geometry().GetY()])
+
+            res = AzimutMathUtil().getAzimuth(feat_list, 10, i)
 
             # Запишем значение азимута и номера фактора в отдельный столбец
             self.setFieldValue(feat_list[i], fieldNum, i)
-            self.setFieldValue(feat_list[i+1], fieldAz, azimut_1)
-            self.setFieldValue(feat_list[i+2], fieldAz, azimut_1)
+            # self.setFieldValue(feat_list[i + 1], fieldAz, azimuth_1)
+            # self.setFieldValue(feat_list[i + 2], fieldAz, azimuth_2)
 
-            dist = AzimutMathUtil().distanceCalc([feat_list[i].geometry().GetX(), feat_list[i].geometry().GetY()],
-                                                 [feat_list[i + 1].geometry().GetX(),
-                                                  feat_list[i + 1].geometry().GetY()])
+            # dist = AzimutMathUtil().distanceCalc([feat_list[i].geometry().GetX(), feat_list[i].geometry().GetY()],
+            #                                      [feat_list[i + 1].geometry().GetX(),
+            #                                       feat_list[i + 1].geometry().GetY()])
 
-            if math.fabs(azimut_1 - azimut_2) < accuracy:
-                if dist < min_dist:
-                    bad_paths.append(feat_list[i].GetFID())
-                else:
-                    parts_list.append(feat_list[i])
-                    az_temp.append(azimut_1)
-            else:
-                if parts_list is not None:
-                    flightList.append(parts_list)
-                    az_sum = 0
-                    for item in az_temp:
-                        az_sum = az_sum + item
-                    if len(az_temp) != 0:
-                        avg_az_list.append(az_sum / len(az_temp))
-                parts_list = [feat_list[i]]
-                az_temp = [azimut_1]
-            i += 1
+            # az_all_set.append(azimuth_1)
+            # az_all_set.append(azimuth_2)
 
-        if parts_list is not None:
-            parts_list.append(feat_list[i])
-            parts_list.append(feat_list[i + 1])
-            avg_az_list.append(azimut_2)
-            flightList.append(parts_list)
+            i += 9
 
-        # удаляем аномальные пути в начале полетов (неудачный метод)
-        for item in bad_paths:
-            self.delFeatByID(item)
+            # self.outDS.SyncToDisk()
 
-        self.guiUtil.setOutputStyle('black', 'normal',
-                                            'Количество частей полетов: ' + str(len(flightList)))
-        longest_path = max(len(elem) for elem in flightList)
-        self.guiUtil.setOutputStyle('black', 'normal', 'Самый длинный полет: ' + str(longest_path))
+            # вычислим целевой азимут
+            # targetAzimuth = np.std(az_all_set)
+            # azimuth_avg = np.average(az_all_set)
+            # self.guiUtil.setOutputStyle('black', 'normal', '\nЦелевой азимут: ' + str(targetAzimuth))
+            # self.guiUtil.setOutputStyle('black', 'normal', 'Средний азимут: ' + str(azimut_avg))
 
-        i_longest = 0
-        for path in flightList:
-            if len(path) == longest_path:
-                i_longest = flightList.index(path)
-                break
-
-        target_az = avg_az_list[i_longest]
-        self.guiUtil.setOutputStyle('black', 'normal', 'Целевой азимут: ' + str(target_az))
-        for i in range(len(avg_az_list)):
-            if math.fabs(avg_az_list[i] - target_az) < accuracy or math.fabs(
-                    (avg_az_list[i] + 180) - target_az) < accuracy:
-                if len(flightList[i]) < 20:
-                    for feat in flightList[i]:
-                        self.delFeatByID(feat.GetFID())
-            else:
-                for feat in flightList[i]:
-                    self.delFeatByID(feat.GetFID())
+        #     if math.fabs(azimuth_1 - azimuth_2) < accuracy:
+        #         parts_list.append(feat_list[i])
+        #         az_temp.append(azimuth_1)
+        #         # self.setFieldValue(feat_list[i], fieldClass, numFlight)
+        #     else:
+        #         if parts_list is not None:
+        #             # numFlight += 1
+        #             flightList.append(parts_list)
+        #             avg_az_list.append(np.average(az_temp))
+        #         parts_list = [feat_list[i]]
+        #         # self.setFieldValue(feat_list[i], fieldClass, numFlight)
+        #         az_temp = [azimuth_1]
+        #     i += 1
+        #
+        # if parts_list is not None:
+        #     parts_list.append(feat_list[i])
+        #     parts_list.append(feat_list[i + 1])
+        #     avg_az_list.append(azimuth_2)
+        #     flightList.append(parts_list)
+        #
+        # self.guiUtil.setOutputStyle('black', 'normal',
+        #                             'Количество частей полетов: ' + str(len(flightList)))
+        # longest_path = max(len(elem) for elem in flightList)
+        # self.guiUtil.setOutputStyle('black', 'normal', 'Самый длинный полет: ' + str(longest_path))
+        #
+        # i_longest = 0
+        # for path in flightList:
+        #     if len(path) == longest_path:
+        #         i_longest = flightList.index(path)
+        #         break
+        #
+        # target_az = avg_az_list[i_longest]
+        # self.guiUtil.setOutputStyle('black', 'normal', 'Целевой азимут: ' + str(target_az))
+        #
+        # numFlight = 1
+        # for i in range(len(avg_az_list)):
+        #     if math.fabs(avg_az_list[i] - target_az) < accuracy or \
+        #             math.fabs((avg_az_list[i] + 180) - target_az) < accuracy:
+        #         self.setFieldValue(feat_list[i], fieldClass, numFlight)
+        #         numFlight += 1
+        #         # if len(flightList[i]) < 20:
+        #         # for feat in flightList[i]:
+        #         #     self.delFeatByID(feat.GetFID())
+        #     else:
+        #         pass
+        #         # numFlight += 1
+        #         # self.setFieldValue(feat_list[i], fieldClass, numFlight)
+        #         # for feat in flightList[i]:
+        #         #     self.delFeatByID(feat.GetFID())
 
         self.guiUtil.setOutputStyle('green', 'bold', 'Точки успешно классифицированы!')
-        self.guiUtil.setOutputStyle('black', 'normal', '\nКоличество точек в полученном слое: ' +
-                                    str(self.templayer.GetFeatureCount()))
+        # self.guiUtil.setOutputStyle('black', 'normal', '\nКоличество точек в полученном слое: ' +
+        #                             str(self.templayer.GetFeatureCount()))
         self.outDS.SyncToDisk()

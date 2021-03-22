@@ -4,6 +4,7 @@ from random import randint
 
 from osgeo import ogr, osr
 from qgis._core import QgsProject
+from numba import njit, prange
 
 from .FilesTool import FilesTool
 from .FeatCalcTool import FeatCalcTool
@@ -56,6 +57,7 @@ class MainIFace:
 
             FeatCalcTool(self.outDS, self.temLyr, self.guiUtil).removeZeroPointsFromMemory(boolChecked)
 
+    # @njit(fastmath=True, cache=True, parallel=True)
     def saveToFile(self, filename, filepath):
         if filepath is not None:
             FilesTool(self.guiUtil).saveTempLayerToFile(self.temLyr, filename, filepath)

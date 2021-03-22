@@ -28,6 +28,18 @@ class AzimutMathUtil:
         else:
             return 0
 
+    def getAzimuth(self, feat_list, numOfRes, start_point):
+        i = 0
+        res = []
+        for i in range(numOfRes):
+            azimuth = AzimutMathUtil().azimutCalc(
+                [feat_list[start_point].geometry().GetX(), feat_list[start_point].geometry().GetY()],
+                [feat_list[start_point + i].geometry().GetX(),
+                 feat_list[start_point + i].geometry().GetY()])
+            res.append(azimuth)
+            i += 1
+        return res
+
     def distanceCalc(self, x1, x2):
         dX = x2[0] - x1[0]
         dY = x2[1] - x1[1]
@@ -95,4 +107,3 @@ class AzimutMathUtil:
         f = cy - tx * d - ty * e
 
         return [new_w, new_h]
-

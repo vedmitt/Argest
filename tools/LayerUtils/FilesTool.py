@@ -3,6 +3,7 @@ import os
 
 from osgeo import osr, ogr
 from qgis._core import QgsProject
+from numba import njit, prange
 
 from .AzimutMathUtil import AzimutMathUtil
 from .FeatCalcTool import FeatCalcTool
@@ -63,6 +64,7 @@ class FilesTool:
             # Create the feature in the layer (shapefile)
             self.templayer.CreateFeature(feature)
 
+    # @njit(fastmath=True, cache=True)
     def layerToMemory(self, driverName, layerpath):
         self.inDS = ogr.GetDriverByName(driverName).Open(layerpath, 0)
 
@@ -82,6 +84,7 @@ class FilesTool:
         # del self.inDS
         return self.outDS, self.templayer
 
+    # @njit(fastmath=True, cache=True)
     def saveTempLayerToFile(self, templayer, filename, filepath):
         # -------- сохраняем результат в шейпфайл (код рабочий) ----------------------
         self.guiUtil.setOutputStyle('black', 'normal', '\nНачинаем сохранение файла...')
