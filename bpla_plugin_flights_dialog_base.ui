@@ -54,6 +54,9 @@
     </layout>
    </item>
    <item>
+    <widget class="QSpinBox" name="spinBox"/>
+   </item>
+   <item>
     <widget class="QCheckBox" name="checkBox">
      <property name="text">
       <string>Удалить нулевые точки</string>
