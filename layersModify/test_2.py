@@ -20,12 +20,18 @@ import math
 # else:
 #     print(0)
 
-az_list = [0, 120, 200, 200, 200, 304, 135]
-i = 0
-step = 50
-for item in az_list:
-    pass
+# az_list = [0, 120, 200, 200, 200, 304, 135]
+# i = 0
+# step = 50
+# for item in az_list:
+#     pass
+#
+# list_test = []
+# print(str(list_test))
+# print(str(bool(list_test)))
 
-list_test = [0]
-print(str(list_test))
-print(str(bool(list_test)))
+time1 = '2020/08/19 04:56:19.500'
+time2 = '2020/09/03 04:47:44.500'
+
+if time1 < time2:
+    print(True)
