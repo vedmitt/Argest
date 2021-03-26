@@ -6,9 +6,10 @@ from osgeo import ogr, osr
 from qgis._core import QgsProject
 from numba import njit, prange
 
-from .FilesTool import FilesTool
-from .FeatCalcTool import FeatCalcTool
-from .FeatCalcTool import *
+from .ClassificationTool_2 import ClassificationTool_2
+from .LayerManagement import LayerManagement
+from .ClassificationTool_1 import ClassificationTool_1
+from .ClassificationTool_1 import *
 from .GuiElemIFace import GuiElemIFace
 from .LayerGetter import LayerGetter
 from .NumCalcUtil import NumCalcUtil
@@ -40,7 +41,7 @@ class MainIFace:
 
         self.guiUtil.setOutputStyle('black', 'normal', 'Создаем новый слой...')
 
-        ft = FilesTool(self.guiUtil)
+        ft = LayerManagement(self.guiUtil)
         if lg.driverName == "Delimited text file":
             ft.csvToMemory(lg.layerpath, lg.csvFileAttrs)
         elif lg.driverName == "ESRI Shapefile":
@@ -55,18 +56,19 @@ class MainIFace:
                                                  'Количество точек во временном слое: ' + str(
                                                      self.temLyr.GetFeatureCount()))
 
-            FeatCalcTool(self.outDS, self.temLyr, self.guiUtil).removeZeroPointsFromMemory(boolChecked)
+            FeatureManagement(self.outDS, self.temLyr, self.guiUtil).removeZeroPointsFromMemory(boolChecked)
 
     # @njit(fastmath=True, cache=True, parallel=True)
     def saveToFile(self, filename, filepath):
         if filepath is not None:
-            FilesTool(self.guiUtil).saveTempLayerToFile(self.temLyr, filename, filepath)
+            LayerManagement(self.guiUtil).saveTempLayerToFile(self.temLyr, filename, filepath)
         else:
             self.guiUtil.setOutputStyle('red', 'bold', 'Введите данные в форму!\n')
 
     def mainAzimutCalc(self):
         # try:
-        FeatCalcTool(self.outDS, self.temLyr, self.guiUtil).mainAzimutCalc()
+        # ClassificationTool_1(self.outDS, self.temLyr, self.guiUtil).mainAzimutCalc()
+        ClassificationTool_2(self.outDS, self.temLyr, self.guiUtil).mainAzimutCalc()
         # except Exception as err:
         #     self.guiUtil.setOutputStyle('red', 'bold', '\nНе удалось классифицировать точки! ' + str(err))
 
@@ -75,7 +77,7 @@ class MainIFace:
         lg = LayerGetter()
         lg.getLayer(vlayerstr)
         if lg.driverName == "ESRI Shapefile":
-            FilesTool(self.guiUtil).layerToMemory(lg.driverName, lg.layerpath)
+            LayerManagement(self.guiUtil).layerToMemory(lg.driverName, lg.layerpath)
 
             NumCalcUtil(self.guiUtil).setFlightNumber(self.outDS, self.temLyr)
 

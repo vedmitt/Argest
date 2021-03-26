@@ -24,7 +24,7 @@
       </font>
      </property>
      <property name="text">
-      <string>Введите параметры редактирования: </string>
+      <string>Введите параметры: </string>
      </property>
     </widget>
    </item>
@@ -52,9 +52,6 @@
       </widget>
      </item>
     </layout>
-   </item>
-   <item>
-    <widget class="QSpinBox" name="spinBox"/>
    </item>
    <item>
     <widget class="QCheckBox" name="checkBox">
@@ -110,7 +107,7 @@ p, li { white-space: pre-wrap; }
    <item>
     <widget class="QPushButton" name="pushButton">
      <property name="text">
-      <string>Редактировать слой</string>
+      <string>Запустить</string>
      </property>
     </widget>
    </item>

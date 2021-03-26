@@ -6,10 +6,10 @@ from qgis._core import QgsProject
 from numba import njit, prange
 
 from .AzimutMathUtil import AzimutMathUtil
-from .FeatCalcTool import FeatCalcTool
+from .ClassificationTool_1 import ClassificationTool_1
 
 
-class FilesTool:
+class LayerManagement:
     def __init__(self, guiUtil):
         self.guiUtil = guiUtil
         self.outDS = None
@@ -126,7 +126,7 @@ class FilesTool:
                             filename, file_extension = os.path.splitext(file)
                             if file_extension == ".shp":
                                 filepath = folderPath + '/' + entry.name + '/' + file.name
-                                ftool = FeatCalcTool(self.outDS, self.templayer, self.guiUtil)
+                                ftool = ClassificationTool_1(self.outDS, self.templayer, self.guiUtil)
                                 # copy the first layer to temp
                                 if i == 0:
                                     self.layerToMemory(driverName, filepath)

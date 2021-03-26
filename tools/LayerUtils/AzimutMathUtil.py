@@ -82,28 +82,13 @@ class AzimutMathUtil:
             av_az = av_az / len(az_list)
         return av_az
 
-    def rotateTransform(self, w, h, deg_ccw):
-        sx = sy = 1
+    def rotateTransform(self, x, y, deg_ccw):
         angle = math.radians(-deg_ccw)
 
         cos_theta = math.cos(angle)
         sin_theta = math.sin(angle)
 
-        scaled_w, scaled_h = w * sx, h * sy
+        new_w = cos_theta * x - sin_theta * y
+        new_h = sin_theta * x + cos_theta * y
 
-        new_w = int(math.ceil(math.fabs(cos_theta * scaled_w) + math.fabs(sin_theta * scaled_h)))
-        new_h = int(math.ceil(math.fabs(sin_theta * scaled_w) + math.fabs(cos_theta * scaled_h)))
-
-        cx = w / 2.
-        cy = h / 2.
-        tx = new_w / 2.
-        ty = new_h / 2.
-
-        a = cos_theta / sx
-        b = sin_theta / sx
-        c = cx - tx * a - ty * b
-        d = -sin_theta / sy
-        e = cos_theta / sy
-        f = cy - tx * d - ty * e
-
-        return [new_w, new_h]
+        return new_w, new_h

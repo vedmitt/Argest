@@ -33,7 +33,7 @@ from time import perf_counter
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
 from qgis.utils import iface
 
-from .tools.LayerUtils.FeatCalcTool import FeatCalcTool
+from .tools.LayerUtils.ClassificationTool_1 import ClassificationTool_1
 from .tools.LayerUtils.MainIFace import MainIFace
 from .tools.LayerUtils.LayerGetter import LayerGetter
 from .tools.LayerUtils.GuiElemIFace import GuiElemIFace
@@ -59,7 +59,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.checkBox.setChecked(True)
         self.toolButton.clicked.connect(self.getSaveFileName)
         self.pushButton.clicked.connect(self.doResult)
-        self.lineEdit.setText(r'M:\Sourcetree\output\test_1.shp')
+        self.lineEdit.setText(r'M:\Sourcetree\output\test_2.shp')
 
         # self.toolButton_plan.clicked.connect(self.getFolderName)
         # self.toolButton_cbreload_2.setIcon(QIcon(':/plugins/bpla_plugin_flights/icons/icon_reload.png'))
