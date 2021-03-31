@@ -66,11 +66,8 @@ class MainIFace:
             self.guiUtil.setOutputStyle('red', 'bold', 'Введите данные в форму!\n')
 
     def mainAzimutCalc(self):
-        # try:
-        # ClassificationTool_1(self.outDS, self.temLyr, self.guiUtil).mainAzimutCalc()
-        ClassificationTool_2(self.outDS, self.temLyr, self.guiUtil).mainAzimutCalc()
-        # except Exception as err:
-        #     self.guiUtil.setOutputStyle('red', 'bold', '\nНе удалось классифицировать точки! ' + str(err))
+        ClassificationTool_1(self.outDS, self.temLyr, self.guiUtil).mainAzimutCalc()
+        # ClassificationTool_2(self.outDS, self.temLyr, self.guiUtil).mainAzimutCalc()
 
     def numbersForFlights(self, vlayerstr):
         # try:

@@ -59,7 +59,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.checkBox.setChecked(True)
         self.toolButton.clicked.connect(self.getSaveFileName)
         self.pushButton.clicked.connect(self.doResult)
-        self.lineEdit.setText(r'M:\Sourcetree\output\test_2.shp')
+        self.lineEdit.setText(r'M:\Sourcetree\output\test_3.shp')
 
         # self.toolButton_plan.clicked.connect(self.getFolderName)
         # self.toolButton_cbreload_2.setIcon(QIcon(':/plugins/bpla_plugin_flights/icons/icon_reload.png'))

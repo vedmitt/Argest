@@ -2,8 +2,11 @@ class LogFileTool:
     def __init__(self):
         self.filepath = 'M:\Sourcetree\output\log1.txt'
 
-    def writeToLog(self, lines):
+    def writeToFile(self, lines, filepath):
         if len(lines) > 0:
-            with open(self.filepath, 'w') as f:
+            with open(filepath, 'w') as f:
                 for line in lines:
-                    f.write(line)
+                    f.write('\n' + str(line))
+
+    def readFromFile(self, filepath, separator):
+        pass

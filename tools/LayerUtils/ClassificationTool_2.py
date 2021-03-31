@@ -75,7 +75,7 @@ class ClassificationTool_2:
             res.append(z)
 
             # запишем значение азимута и расстояние мужду точками в столбцы
-            self.fm.setFieldValue(feat_list[i], self.fieldAz1, azimuth)
+            # self.fm.setFieldValue(feat_list[i], self.fieldAz1, azimuth)
             # self.fm.setFieldValue(feat_list[i], self.fieldDist, dist)
 
             prev_ind = i
@@ -89,6 +89,7 @@ class ClassificationTool_2:
 
     def affineCoordinate(self, feat_list, targetAzimuth):
         az = AzimutMathUtil()
+        new_coordinates = []
         angle = 90 - targetAzimuth
         Ox = feat_list[0].geometry().GetX()
         Oy = feat_list[0].geometry().GetY()
@@ -97,9 +98,10 @@ class ClassificationTool_2:
             dx = fg.GetX() - Ox
             dy = fg.GetY() - Oy
             new_x, new_y = az.rotateTransform(dx, dy, angle)
-            # feat.SetGeometry(Geometry(new_x, new_y))
-            self.fm.setFieldValue(feat, self.fieldDx, new_x)
-            self.fm.setFieldValue(feat, self.fieldDy, new_y)
+            # self.fm.setFieldValue(feat, self.fieldDx, new_x)
+            # self.fm.setFieldValue(feat, self.fieldDy, new_y)
+            new_coordinates.append([new_x, new_y])
+        return new_coordinates
 
     def mainAzimutCalc(self):
         self.guiUtil.setOutputStyle('black', 'normal', '\nНачинаем классификацию точек...')
@@ -108,9 +110,9 @@ class ClassificationTool_2:
         # self.fm.createNewField(self.fieldNum, ogr.OFTInteger)
         self.fm.createNewField(self.fieldAz, ogr.OFTReal)
         self.fm.createNewField(self.fieldDist, ogr.OFTReal)
-        self.fm.createNewField(self.fieldDx, ogr.OFTReal)
-        self.fm.createNewField(self.fieldDy, ogr.OFTReal)
-        self.fm.createNewField(self.fieldAz1, ogr.OFTReal)
+        # self.fm.createNewField(self.fieldDx, ogr.OFTReal)
+        # self.fm.createNewField(self.fieldDy, ogr.OFTReal)
+        # self.fm.createNewField(self.fieldAz1, ogr.OFTReal)
         # self.fm.createNewField(self.fieldPass, ogr.OFTInteger)
         # self.fm.createNewField(self.fieldClass, ogr.OFTString)
 
@@ -126,7 +128,10 @@ class ClassificationTool_2:
         self.guiUtil.setOutputStyle('black', 'normal', 'Целевой азимут: ' + str(self.targetAzimuth))
 
         # выполним аффинные преобразования относительно первой точки
-        self.affineCoordinate(feat_list, self.targetAzimuth)
+        new_coor = self.affineCoordinate(feat_list, self.targetAzimuth)
         self.guiUtil.setOutputStyle('black', 'normal', 'Аффиное преобразование выполнено!')
         new_azimuth = self.getNewAzimuth(feat_list)
         self.guiUtil.setOutputStyle('black', 'normal', 'Новый азимут: ' + str(new_azimuth))
+
+        # с помощью новых координат вычслим гистограмму по У и узнаем шаг профилей.
+

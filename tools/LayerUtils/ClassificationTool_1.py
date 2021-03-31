@@ -50,6 +50,22 @@ class ClassificationTool_1:
             targetAzimuth -= 180
         return targetAzimuth
 
+    # def repeatAzimuthLoop(self, feat_list):
+    #     # из таблицы берем азимут и значение класса точки
+    #     # сравниваем несколько точек по азимуту
+    #     # az_list = self.fm.getAllFieldValuesAsList(self.templayer, self.fieldAz)
+    #     # class_list = self.fm.getAllFieldValuesAsList(self.templayer, self.fieldClass)
+    #
+    #     prev1 = 0
+    #     prev2 = 1
+    #     i = 2
+    #     while i < len(feat_list) - 2:
+    #
+    #         pass
+    #         prev1 = prev2
+    #         prev2 = i
+    #         i += 1
+
     def azimuthLoop(self, feat_list, numPass):
         i = 1
         prev_ind = 0
@@ -73,7 +89,7 @@ class ClassificationTool_1:
 
             period = cur_date - prev_date
             if dist > 10 and period.total_seconds() < 60:
-                # self.log_lines.append('\nВыполнилось условие dist > 10 и разница во времени < 60 сек для i = ' + str(i))
+                # self.log_lines.append('\nВыполнилось условие dist > 10 и разница во времени < 60 сек для i = '+str(i))
                 control_flights.append(feat_list[i])
             else:
                 # self.log_lines.append('\nВыполнилось условие else для i = ' + str(i))
@@ -123,7 +139,7 @@ class ClassificationTool_1:
 
         # создаем новый столбец
         # self.fm.createNewField(self.fieldNum, ogr.OFTInteger)
-        # self.fm.createNewField(self.fieldAz, ogr.OFTReal)
+        self.fm.createNewField(self.fieldAz, ogr.OFTReal)
         self.fm.createNewField(self.fieldClass, ogr.OFTString)
         # # self.createNewField(self.fieldDx, ogr.OFTReal)
         # # self.createNewField(self.fieldDy, ogr.OFTReal)
@@ -140,17 +156,23 @@ class ClassificationTool_1:
         self.targetAzimuth = self.getMostFreqAzimuth(feat_list)
         self.guiUtil.setOutputStyle('black', 'normal', 'Целевой азимут: ' + str(self.targetAzimuth))
 
+        # проходим по всем азимутам и сравниваем с целевым
         num_pass = 1
         control_flights = self.azimuthLoop(feat_list, num_pass)
 
         # self.guiUtil.setOutputStyle('black', 'normal', str(len(control_flights)))
 
+        # повторяем процедуру для полетов, совершенных одновременно
         while len(control_flights) > 0:
             num_pass += 1
             control_flights = self.azimuthLoop(control_flights, num_pass)
             # self.guiUtil.setOutputStyle('black', 'normal', str(len(control_flights)))
 
         # LogFileTool().writeToLog(self.log_lines)
+
+        # делаем обход "окном сглаживания" еще раз
+        # для того чтобы очистить точки внутри профилей от ошибочно забракованных
+        # self.repeatAzimuthLoop(feat_list)
 
         self.guiUtil.setOutputStyle('green', 'bold', 'Точки успешно классифицированы!')
         self.outDS.SyncToDisk()

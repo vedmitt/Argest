@@ -56,6 +56,19 @@ class FeatureManagement:
             feature.SetField(fieldName, value)
             self.templayer.SetFeature(feature)
 
+    def getFieldValue(self, feature, fieldName):
+        if feature.GetField(fieldName) is not None:
+            return feature.GetField(fieldName)
+
+    def getAllFieldValuesAsList(self, templayer, fieldName):
+        values = []
+        for i in range(templayer.GetFeatureCount()):
+            feat = templayer.GetNextFeature()
+            val = self.getFieldValue(feat, fieldName)
+            values.append(val)
+        templayer.ResetReading()
+        return values
+
     def isTargetAzimuth(self, azimuth, targetAzimuth, accuracy):
         if azimuth > 180:
             azimuth = azimuth - 180
