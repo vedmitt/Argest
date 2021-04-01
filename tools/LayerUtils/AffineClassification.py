@@ -13,7 +13,7 @@ from .FeatureManagement import FeatureManagement
 from .LogFileTool import LogFileTool
 
 
-class ClassificationTool_2:
+class AffineClassification:
 
     def __init__(self, outDS, templayer, guiUtil):
         self.log_lines = []

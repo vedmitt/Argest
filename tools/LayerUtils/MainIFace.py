@@ -6,10 +6,10 @@ from osgeo import ogr, osr
 from qgis._core import QgsProject
 from numba import njit, prange
 
-from .ClassificationTool_2 import ClassificationTool_2
+from .AffineClassification import AffineClassification
+from .ClassificationTool import ClassificationTool
+from .FeatureManagement import FeatureManagement
 from .LayerManagement import LayerManagement
-from .ClassificationTool_1 import ClassificationTool_1
-from .ClassificationTool_1 import *
 from .GuiElemIFace import GuiElemIFace
 from .LayerGetter import LayerGetter
 from .NumCalcUtil import NumCalcUtil
@@ -49,38 +49,37 @@ class MainIFace:
             # return tlyr
         return None
 
-    def removeZeroPoints(self, boolChecked):
+    def removeZeroPoints(self):
         # далее работаем с временным слоем
         if self.temLyr is not None:
             self.guiUtil.setOutputStyle('black', 'normal',
                                                  'Количество точек во временном слое: ' + str(
                                                      self.temLyr.GetFeatureCount()))
 
-            FeatureManagement(self.outDS, self.temLyr, self.guiUtil).removeZeroPointsFromMemory(boolChecked)
+            FeatureManagement(self.outDS, self.temLyr, self.guiUtil).removeZeroPointsFromMemory()
 
-    # @njit(fastmath=True, cache=True, parallel=True)
-    def saveToFile(self, filename, filepath):
+    def saveToFile(self, feat_list, filename, filepath):
         if filepath is not None:
-            LayerManagement(self.guiUtil).saveTempLayerToFile(self.temLyr, filename, filepath)
+            LayerManagement(self.guiUtil).saveFeatListToFile(feat_list, filename, filepath)
         else:
             self.guiUtil.setOutputStyle('red', 'bold', 'Введите данные в форму!\n')
 
-    def mainAzimutCalc(self):
-        ClassificationTool_1(self.outDS, self.temLyr, self.guiUtil).mainAzimutCalc()
+    def mainAzimutCalc(self, filename, filepath):
+        ClassificationTool(self.outDS, self.temLyr, self.guiUtil, filename, filepath).mainAzimutCalc()
         # ClassificationTool_2(self.outDS, self.temLyr, self.guiUtil).mainAzimutCalc()
 
-    def numbersForFlights(self, vlayerstr):
-        # try:
-        lg = LayerGetter()
-        lg.getLayer(vlayerstr)
-        if lg.driverName == "ESRI Shapefile":
-            LayerManagement(self.guiUtil).layerToMemory(lg.driverName, lg.layerpath)
-
-            NumCalcUtil(self.guiUtil).setFlightNumber(self.outDS, self.temLyr)
-
-            fileName = 'test_' + str(randint(0000, 9999))
-            filePath = "M:/Sourcetree/output/" + fileName + ".shp"
-            self.saveToFile(fileName, filePath)
-        # except Exception as err:
-        #     self.guiUtil.setOutputStyle('red', 'bold', '\nНе удалось пронумеровать полеты! ' + str(err))
+    # def numbersForFlights(self, vlayerstr):
+    #     # try:
+    #     lg = LayerGetter()
+    #     lg.getLayer(vlayerstr)
+    #     if lg.driverName == "ESRI Shapefile":
+    #         LayerManagement(self.guiUtil).layerToMemory(lg.driverName, lg.layerpath)
+    #
+    #         NumCalcUtil(self.guiUtil).setFlightNumber(self.outDS, self.temLyr)
+    #
+    #         fileName = 'test_' + str(randint(0000, 9999))
+    #         filePath = "M:/Sourcetree/output/" + fileName + ".shp"
+    #         self.saveToFile(fileName, filePath)
+    #     # except Exception as err:
+    #     #     self.guiUtil.setOutputStyle('red', 'bold', '\nНе удалось пронумеровать полеты! ' + str(err))
 

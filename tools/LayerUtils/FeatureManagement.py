@@ -9,21 +9,20 @@ class FeatureManagement:
         self.templayer = templayer
         self.guiUtil = guiUtil
 
-    def removeZeroPointsFromMemory(self, boolChecked):
+    def removeZeroPointsFromMemory(self):
         # далее работаем с временным слоем
         # -------- удаляем нулевые точки ---------------
-        if boolChecked:
-            self.guiUtil.setOutputStyle('black', 'normal', '\nНачинаем удаление нулевых точек...')
-            for i in range(self.templayer.GetFeatureCount()):
-                feat = self.templayer.GetNextFeature()
-                if feat is not None:
-                    geom = feat.geometry()
-                    if geom.GetX() == 0.0 and geom.GetY() == 0.0:
-                        self.delFeatByID(feat.GetFID())
-            self.templayer.ResetReading()
+        self.guiUtil.setOutputStyle('black', 'normal', '\nНачинаем удаление нулевых точек...')
+        for i in range(self.templayer.GetFeatureCount()):
+            feat = self.templayer.GetNextFeature()
+            if feat is not None:
+                geom = feat.geometry()
+                if geom.GetX() == 0.0 and geom.GetY() == 0.0:
+                    self.delFeatByID(feat.GetFID())
+        self.templayer.ResetReading()
 
-            self.guiUtil.setOutputStyle('green', 'bold', 'Нулевые точки успешно удалены!')
-            self.guiUtil.setOutputStyle('black', 'normal', 'Количество точек после удаления нулевых: ' +
+        self.guiUtil.setOutputStyle('green', 'bold', 'Нулевые точки успешно удалены!')
+        self.guiUtil.setOutputStyle('black', 'normal', 'Количество точек после удаления нулевых: ' +
                                         str(self.templayer.GetFeatureCount()))
         self.outDS.SyncToDisk()
 
@@ -52,9 +51,8 @@ class FeatureManagement:
         self.templayer.CreateField(fieldDefn)
 
     def setFieldValue(self, feature, fieldName, value):
-        if feature.GetField(fieldName) is None:
-            feature.SetField(fieldName, value)
-            self.templayer.SetFeature(feature)
+        feature.SetField(fieldName, value)
+        self.templayer.SetFeature(feature)
 
     def getFieldValue(self, feature, fieldName):
         if feature.GetField(fieldName) is not None:

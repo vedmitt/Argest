@@ -33,7 +33,7 @@ from time import perf_counter
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
 from qgis.utils import iface
 
-from .tools.LayerUtils.ClassificationTool_1 import ClassificationTool_1
+from .tools.LayerUtils.ClassificationTool import ClassificationTool
 from .tools.LayerUtils.MainIFace import MainIFace
 from .tools.LayerUtils.LayerGetter import LayerGetter
 from .tools.LayerUtils.GuiElemIFace import GuiElemIFace
@@ -59,7 +59,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.checkBox.setChecked(True)
         self.toolButton.clicked.connect(self.getSaveFileName)
         self.pushButton.clicked.connect(self.doResult)
-        self.lineEdit.setText(r'M:\Sourcetree\output\test_3.shp')
+        self.lineEdit.setText(r'M:\Sourcetree\output\test_5.shp')
 
         # self.toolButton_plan.clicked.connect(self.getFolderName)
         # self.toolButton_cbreload_2.setIcon(QIcon(':/plugins/bpla_plugin_flights/icons/icon_reload.png'))
@@ -111,12 +111,14 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         createTempLyrDeco = lyr2.exceptionsDecorator(lyr2.createTempLayer(lg),
                                                      '\nНе удалось создать временный слой! ')
         self.getFilepath()
-        remZeroPointsDeco = lyr2.exceptionsDecorator(lyr2.removeZeroPoints(self.checkBox.isChecked()),
-                                                     '\nНе удалось удалить нулевые точки! ')
+        if self.checkBox.isChecked():
+            remZeroPointsDeco = lyr2.exceptionsDecorator(lyr2.removeZeroPoints(),
+                                                         '\nНе удалось удалить нулевые точки! ')
         # # lyr.mainAzimutCalc()
-        mainAlgorithmDeco = lyr2.exceptionsDecorator(lyr2.mainAzimutCalc(), '\nНе удалось классифицировать точки! ')
-        saveFileDeco = lyr2.exceptionsDecorator(lyr2.saveToFile(self.filename, self.filepath),
-                                                '\nНе удалось сохранить/загрузить файл! ')
+        mainAlgorithmDeco = lyr2.exceptionsDecorator(lyr2.mainAzimutCalc(self.filename, self.filepath), '\nНе удалось классифицировать точки! ')
+
+        # saveFileDeco = lyr2.exceptionsDecorator(lyr2.saveToFile(self.filename, self.filepath),
+        #                                         '\nНе удалось сохранить/загрузить файл! ')
 
         end = perf_counter()
         GuiElemIFace(self.textEdit).setOutputStyle('black', 'normal', 'Время работы плагина: ' + str(end - start))

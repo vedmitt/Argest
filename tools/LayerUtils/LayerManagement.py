@@ -6,7 +6,6 @@ from qgis._core import QgsProject
 from numba import njit, prange
 
 from .AzimutMathUtil import AzimutMathUtil
-from .ClassificationTool_1 import ClassificationTool_1
 
 
 class LayerManagement:
@@ -85,6 +84,47 @@ class LayerManagement:
         return self.outDS, self.templayer
 
     # @njit(fastmath=True, cache=True)
+    def saveFeatListToFile(self, feat_list, templayer, filename, filepath):
+        # -------- сохраняем результат в шейпфайл (код рабочий) ----------------------
+        self.guiUtil.setOutputStyle('black', 'normal', '\nНачинаем сохранение файла...')
+
+        fileDriver = ogr.GetDriverByName('ESRI Shapefile')
+
+        # если слой уже существует и загружен, то удаляем его из проекта
+        # for layer in QgsProject.instance().mapLayers().values():
+        #     if layer.name() == filename:
+        #         QgsProject.instance().removeMapLayers([layer.id()])
+        #         # break
+
+        if os.path.exists(filepath):
+            fileDriver.DeleteDataSource(filepath)
+
+        fileDS = fileDriver.CreateDataSource(filepath)
+        newDS = fileDriver.Open(filepath, 1)
+
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(28420)
+        newlayer = fileDS.CreateLayer(filename, srs, ogr.wkbPoint)
+
+        # newlayer = fileDS.CopyLayer(templayer, filename, ['OVERWRITE=YES'])
+
+        inLayerDefn = templayer.GetLayerDefn()
+        for i in range(0, inLayerDefn.GetFieldCount()):
+            fieldDefn = inLayerDefn.GetFieldDefn(i)
+            fieldName = fieldDefn.GetName()
+            newlayer.CreateField(fieldDefn)
+
+        for feature in feat_list:
+            newlayer.CreateFeature(feature)
+
+        self.guiUtil.setOutputStyle('black', 'normal', 'Файл успешно сохранен!')
+
+        if newlayer is not None:
+            self.guiUtil.uploadLayer(filepath, filename, 'ogr')
+            self.guiUtil.setOutputStyle('green', 'bold', 'Слой успешно загружен в QGIS!')
+
+        # del outDS, newDS, fileDS
+
     def saveTempLayerToFile(self, templayer, filename, filepath):
         # -------- сохраняем результат в шейпфайл (код рабочий) ----------------------
         self.guiUtil.setOutputStyle('black', 'normal', '\nНачинаем сохранение файла...')
@@ -113,41 +153,49 @@ class LayerManagement:
 
         # del outDS, newDS, fileDS
 
-    def createOnePlanLayer(self, folderPath):
-        driverName = 'ESRI Shapefile'
-        feat_list = None
-        with os.scandir(folderPath) as entries:
-            i = 0
-            for entry in entries:
-                if os.path.isdir(entry):
-                    # self.guiUtil.setTextEditStyle('black', 'normal', str(entry.name))
-                    with os.scandir(entry) as dir:
-                        for file in dir:
-                            filename, file_extension = os.path.splitext(file)
-                            if file_extension == ".shp":
-                                filepath = folderPath + '/' + entry.name + '/' + file.name
-                                ftool = ClassificationTool_1(self.outDS, self.templayer, self.guiUtil)
-                                # copy the first layer to temp
-                                if i == 0:
-                                    self.layerToMemory(driverName, filepath)
-                                    feat_list = ftool.tempLayerToListFeat(self.templayer)
-                                    i += 1
-                                elif i > 0:
-                                    newDS = ogr.GetDriverByName(driverName).Open(filepath, 0)
-                                    new_lyr = newDS.GetLayer()
-                                    feat_list.append(ftool.tempLayerToListFeat(new_lyr))
-                                    for feature in new_lyr:
-                                        self.templayer.CreateFeature(feature)
-
-        # save all features in list to file
-        self.outDS.SyncToDisk()
-        # fileName = 'basic_outline_' + str(randint(0000, 9999))
-        # filePath = folderPath + '/' + fileName + ".shp"
-        # self.guiUtil.setTextEditStyle('black', 'normal', filePath)
-        # self.saveToFile(fileName, filePath)
-
-        av_az = AzimutMathUtil().averageAzimut(feat_list)
-        self.guiUtil.setOutputStyle('black', 'normal', str(av_az))
-
-        # except Exception as err:
+    # def createOnePlanLayer(self, folderPath):
+    #     driverName = 'ESRI Shapefile'
+    #     feat_list = None
+    #     with os.scandir(folderPath) as entries:
+    #         i = 0
+    #         for entry in entries:
+    #             if os.path.isdir(entry):
+    #                 # self.guiUtil.setTextEditStyle('black', 'normal', str(entry.name))
+    #                 with os.scandir(entry) as dir:
+    #                     for file in dir:
+    #                         filename, file_extension = os.path.splitext(file)
+    #                         if file_extension == ".shp":
+    #                             filepath = folderPath + '/' + entry.name + '/' + file.name
+    #                             ftool = ClassificationTool(self.outDS, self.templayer, self.guiUtil)
+    #                             # copy the first layer to temp
+    #                             if i == 0:
+    #                                 self.layerToMemory(driverName, filepath)
+    #                                 feat_list = ftool.tempLayerToListFeat(self.templayer)
+    #                                 i += 1
+    #                             elif i > 0:
+    #                                 newDS = ogr.GetDriverByName(driverName).Open(filepath, 0)
+    #                                 new_lyr = newDS.GetLayer()
+    #                                 feat_list.append(ftool.tempLayerToListFeat(new_lyr))
+    #                                 for feature in new_lyr:
+    #                                     self.templayer.CreateFeature(feature)
+    #
+    #     # save all features in list to file
+    #     self.outDS.SyncToDisk()
+    #     # fileName = 'basic_outline_' + str(randint(0000, 9999))
+    #     # filePath = folderPath + '/' + fileName + ".shp"
+    #     # self.guiUtil.setTextEditStyle('black', 'normal', filePath)
+    #     # self.saveToFile(fileName, filePath)
+    #
+    #     av_az = AzimutMathUtil().averageAzimut(feat_list)
+    #     self.guiUtil.setOutputStyle('black', 'normal', str(av_az))
+    #
+    #     # except Exception as err:
         #     self.guiUtil.setTextEditStyle('red', 'bold', '\nНе удалось открыть папку с файлами! ' + str(err))
+
+    # def createNewLayerFromList(self, feat_list, layer_name):
+    #     self.guiUtil.setOutputStyle('black', 'normal', '\nНачинаем сохранение контрольных профилей...')
+    #     newDS = ogr.GetDriverByName(driverName).Open(filepath, 0)
+    #     new_lyr = newDS.GetLayer()
+    #     feat_list.append(ftool.tempLayerToListFeat(new_lyr))
+    #     for feature in new_lyr:
+    #         self.templayer.CreateFeature(feature)

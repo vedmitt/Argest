@@ -4,7 +4,7 @@ from datetime import datetime
 
 import ogr
 
-from .ClassificationTool_1 import ClassificationTool_1
+from .ClassificationTool import ClassificationTool
 from .AzimutMathUtil import AzimutMathUtil
 
 
@@ -29,7 +29,7 @@ class NumCalcUtil:
         self.layer.CreateField(fieldDefn)
 
         # Переводим все фичи в список, сортируем по времени
-        az = ClassificationTool_1(self.dataSource, self.layer, None)
+        az = ClassificationTool(self.dataSource, self.layer, None)
         self.feat_list = az.tempLayerToListFeat(self.layer)
         self.feat_list = az.sortListByLambda(self.feat_list, 'TIME')
 
@@ -80,7 +80,7 @@ class NumCalcUtil:
             if math.fabs(cur_geom.GetY() - valueY) < radius \
                     and self.feat_list[i].GetField(self.newField) is None:
                 the_path.append(self.feat_list[i])
-                ClassificationTool_1(self.dataSource, self.layer, self.guiUtil).setFieldValue(self.feat_list[i], self.newField, flight_num)
+                ClassificationTool(self.dataSource, self.layer, self.guiUtil).setFieldValue(self.feat_list[i], self.newField, flight_num)
             # else:
             #     AzCalcTool(dataSource, layer, None).delFeatByID(feat_list[i].GetFID())
         return the_path
@@ -148,7 +148,7 @@ class NumCalcUtil:
         # TimeCalcUtil.guiUtil.textEdit.append(str(extent[2]))
         # TimeCalcUtil.guiUtil.textEdit.append(str(extent[3]))
         for feature in layer:
-            ClassificationTool_1(dataSource, layer, None).delFeatByID(feature.GetFID())
+            ClassificationTool(dataSource, layer, None).delFeatByID(feature.GetFID())
 
         self.saveToFile('states_extent', "M:/Sourcetree/output/states_extent.shp", poly)
 
