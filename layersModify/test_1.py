@@ -1,3 +1,3 @@
-az_list = [0]
-print(int(True))
-print(int(False))
+test = [0, 'g', 2, 3]
+test.remove('g')
+print(test)

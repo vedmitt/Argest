@@ -64,8 +64,8 @@ class MainIFace:
         else:
             self.guiUtil.setOutputStyle('red', 'bold', 'Введите данные в форму!\n')
 
-    def mainAzimutCalc(self, filename, filepath):
-        ClassificationTool(self.outDS, self.temLyr, self.guiUtil, filename, filepath).mainAzimutCalc()
+    def mainAzimutCalc(self, filename, filepath, checkBox_delete, checkBox_numProfiles):
+        ClassificationTool(self.outDS, self.temLyr, self.guiUtil, filename, filepath).mainAzimutCalc(checkBox_delete, checkBox_numProfiles)
         # ClassificationTool_2(self.outDS, self.temLyr, self.guiUtil).mainAzimutCalc()
 
     # def numbersForFlights(self, vlayerstr):

@@ -111,11 +111,12 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         createTempLyrDeco = lyr2.exceptionsDecorator(lyr2.createTempLayer(lg),
                                                      '\nНе удалось создать временный слой! ')
         self.getFilepath()
+
         if self.checkBox.isChecked():
             remZeroPointsDeco = lyr2.exceptionsDecorator(lyr2.removeZeroPoints(),
                                                          '\nНе удалось удалить нулевые точки! ')
         # # lyr.mainAzimutCalc()
-        mainAlgorithmDeco = lyr2.exceptionsDecorator(lyr2.mainAzimutCalc(self.filename, self.filepath), '\nНе удалось классифицировать точки! ')
+        mainAlgorithmDeco = lyr2.exceptionsDecorator(lyr2.mainAzimutCalc(self.filename, self.filepath, self.checkBox_delete, self.checkBox_numProfiles), '\nНе удалось классифицировать точки! ')
 
         # saveFileDeco = lyr2.exceptionsDecorator(lyr2.saveToFile(self.filename, self.filepath),
         #                                         '\nНе удалось сохранить/загрузить файл! ')
