@@ -1,23 +1,13 @@
 import math
 from datetime import datetime
-from random import randint
-from statistics import mode
-
-import numpy
-import numpy as np
-
-from PyQt5.QtCore import QVariant
-from osgeo import ogr
-from qgis._core import QgsVectorDataProvider, QgsFeatureRequest, QgsField
+import os
+from osgeo import ogr, osr
 
 from .AzimutMathUtil import AzimutMathUtil
 from .LayerManagement import LayerManagement
 from .LogFileTool import LogFileTool
 from .FeatureManagement import FeatureManagement
 from .BufferAzimuth import BufferAzimuth
-
-
-# from .MainIFace import MainIFace
 
 
 class ClassificationTool:
@@ -46,7 +36,52 @@ class ClassificationTool:
         self.guiUtil = guiUtil
         self.fm = FeatureManagement(self.outDS, self.templayer, self.guiUtil)
 
+    def saveFeatListToFile(self, feat_list, templayer, filename, filepath, checkBox_delete):
+        # -------- сохраняем результат в шейпфайл (код рабочий) ----------------------
+        self.guiUtil.setOutputStyle('black', 'normal', '\nНачинаем сохранение файла...')
+
+        fileDriver = ogr.GetDriverByName('ESRI Shapefile')
+
+        # если слой уже существует и загружен, то удаляем его из проекта
+        # for layer in QgsProject.instance().mapLayers().values():
+        #     if layer.name() == filename:
+        #         QgsProject.instance().removeMapLayers([layer.id()])
+        #         # break
+
+        if os.path.exists(filepath):
+            fileDriver.DeleteDataSource(filepath)
+
+        fileDS = fileDriver.CreateDataSource(filepath)
+        newDS = fileDriver.Open(filepath, 1)
+
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(28420)
+        newlayer = fileDS.CreateLayer(filename, srs, ogr.wkbPoint)
+
+        # newlayer = fileDS.CopyLayer(templayer, filename, ['OVERWRITE=YES'])
+
+        inLayerDefn = templayer.GetLayerDefn()
+        for i in range(0, inLayerDefn.GetFieldCount()):
+            fieldDefn = inLayerDefn.GetFieldDefn(i)
+            fieldName = fieldDefn.GetName()
+            newlayer.CreateField(fieldDefn)
+
+        for feature in feat_list:
+            if checkBox_delete.isChecked():
+                if feature.GetField(self.fieldClass) == 'азимут<180' \
+                        or feature.GetField(self.fieldClass) == 'азимут>180':
+                    newlayer.CreateFeature(feature)
+
+        self.guiUtil.setOutputStyle('black', 'normal', 'Файл успешно сохранен!')
+
+        if newlayer is not None:
+            self.guiUtil.uploadLayer(filepath, filename, 'ogr')
+            self.guiUtil.setOutputStyle('green', 'bold', 'Слой успешно загружен в QGIS!')
+
+        # del outDS, newDS, fileDS
+
     def numerateProfiles(self, feat_list):
+        self.guiUtil.setOutputStyle('black', 'normal', '\nНачинаем нумерацию профилей... ')
         i = 1
         feat_list = self.fm.sortListByLambda(feat_list, self.fieldGlobalNum)
         isProfile = False
@@ -62,13 +97,14 @@ class ClassificationTool:
                 isProfile = False
             i += 1
 
+        self.guiUtil.setOutputStyle('green', 'bold', 'Профиля успешно пронумерованы!')
+        return feat_list
+
     def getMostFreqAzimuth(self, feat_list):
         step = 10
         res = []
-        # resSpeed = []
         i = 1
         prev_ind = 0
-        # prev_date = datetime.strptime(feat_list[0].GetField('TIME'), self.data_format)
         az = AzimutMathUtil()
         while i < len(feat_list):
             a = az.azimutCalc([feat_list[prev_ind].geometry().GetX(), feat_list[prev_ind].geometry().GetY()],
@@ -77,18 +113,7 @@ class ClassificationTool:
             z = int((a + step / 2) % 360 // step) * 10
             res.append(z)
 
-            # dist = az.distanceCalc([feat_list[prev_ind].geometry().GetX(), feat_list[prev_ind].geometry().GetY()],
-            #                        [feat_list[i].geometry().GetX(),
-            #                         feat_list[i].geometry().GetY()])
-            # cur_date = datetime.strptime(feat_list[i].GetField('TIME'), self.data_format)
-            # period = cur_date - prev_date
-            # if period.total_seconds() != 0:
-            #     cur_speed = dist / period.total_seconds()
-            # else:
-            #     cur_speed = 156634
-
             prev_ind = i
-            # prev_date = cur_date
             i += 1
 
         targetAzimuth = max(set(res), key=res.count)
@@ -96,10 +121,10 @@ class ClassificationTool:
             targetAzimuth -= 180
         return targetAzimuth
 
-    def classify(self, azimuth_1, speed):
-        if math.fabs(self.targetAzimuth - azimuth_1) <= self.accuracy:
+    def classify(self, azimuth, speed):
+        if math.fabs(self.targetAzimuth - azimuth) <= self.accuracy:
             return 'азимут<180'
-        elif math.fabs(self.targetAzimuth + 180 - azimuth_1) <= self.accuracy:
+        elif math.fabs(self.targetAzimuth + 180 - azimuth) <= self.accuracy:
             return 'азимут>180'
         elif speed == 0.0:
             return 'нулевая скорость'
@@ -118,12 +143,8 @@ class ClassificationTool:
         feat_list[0].SetField(self.fieldGlobalNum, self.global_num)
         self.global_num += 1
 
-        # создадим несколько размеров окон для сглаживания
+        # создадим окно сглаживания
         window = BufferAzimuth(self.bufSize, self.targetAzimuth, self.accuracy)
-        # windows = []
-        # for bufSize in self.bufSizeList:
-        #     window = BufferAzimuth(bufSize)
-        #     windows.append(window)
 
         while i < len(feat_list):
             # self.log_lines.append('\n\nИтерация № ' + str(i))
@@ -158,15 +179,11 @@ class ClassificationTool:
                 feat_list[i].SetField(self.fieldAz, azimuth)
                 # feat_list[i].SetField(self.fieldClass, self.classify(azimuth, cur_speed))
 
-                # маркировка с разными окнами сглаживания
-                # k = 0
-                # for bufSize in self.bufSizeList:
                 window.addElem(azimuth)
                 j = i - self.bufSize
                 if j >= 0:
                     feat_list[j].SetField(self.fieldAzAvg, window.getAverage())
                     feat_list[j].SetField(self.fieldClass, self.classify(window.getAverage(), cur_speed))
-                    # k += 1
 
                 prev_ind = i
                 prev_date = cur_date
@@ -177,7 +194,7 @@ class ClassificationTool:
 
         return control_flights
 
-    def mainAzimutCalc(self):
+    def mainAzimutCalc(self, checkBox_delete, checkBox_numProfiles):
         self.guiUtil.setOutputStyle('black', 'normal', '\nНачинаем классификацию точек...')
 
         # создаем новый столбец
@@ -189,14 +206,10 @@ class ClassificationTool:
         # # self.createNewField(self.fieldDy, ogr.OFTReal)
         # self.fm.createNewField(self.fieldDist, ogr.OFTReal)
         # self.fm.createNewField(self.fieldPass, ogr.OFTInteger)
-        self.fm.createNewField(self.fieldNum, ogr.OFTInteger)
         self.fm.createNewField(self.fieldClass, ogr.OFTString)
 
-        # создаем дополнительные столбцы для разных окон сглаживания
-        # k = 0
-        # for k in range(len(self.bufSizeList)):
-        #     self.fm.createNewField(self.fieldClass + '_' + str(self.bufSizeList[k]), ogr.OFTString)
-        #     k += 1
+        if checkBox_numProfiles.isChecked():
+            self.fm.createNewField(self.fieldNum, ogr.OFTInteger)
 
         # переместим фичи из временного слоя в список
         feat_list = self.fm.tempLayerToListFeat(self.templayer)
@@ -222,14 +235,16 @@ class ClassificationTool:
             # self.guiUtil.setOutputStyle('black', 'normal', str(len(control_flights)))
 
         self.guiUtil.setOutputStyle('green', 'bold', 'Точки успешно классифицированы!')
-        self.outDS.SyncToDisk()
+        # self.outDS.SyncToDisk()
 
         # сортируем по глобальному номеру и нумеруем профиля
-        self.numerateProfiles(feat_list)
+        if checkBox_numProfiles.isChecked():
+            feat_list = self.numerateProfiles(feat_list)
 
         # сохраним основной файл
-        lyr2 = LayerManagement(self.guiUtil)
         try:
-            lyr2.saveFeatListToFile(feat_list, self.templayer, self.filename, self.filepath)
+            self.saveFeatListToFile(feat_list, self.templayer, self.filename, self.filepath, checkBox_delete)
         except Exception as err:
             self.guiUtil.setOutputStyle('red', 'bold', '\nНе удалось сохранить/загрузить файл! ' + str(err))
+
+

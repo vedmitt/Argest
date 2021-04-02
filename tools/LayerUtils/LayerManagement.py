@@ -84,46 +84,6 @@ class LayerManagement:
         return self.outDS, self.templayer
 
     # @njit(fastmath=True, cache=True)
-    def saveFeatListToFile(self, feat_list, templayer, filename, filepath):
-        # -------- сохраняем результат в шейпфайл (код рабочий) ----------------------
-        self.guiUtil.setOutputStyle('black', 'normal', '\nНачинаем сохранение файла...')
-
-        fileDriver = ogr.GetDriverByName('ESRI Shapefile')
-
-        # если слой уже существует и загружен, то удаляем его из проекта
-        # for layer in QgsProject.instance().mapLayers().values():
-        #     if layer.name() == filename:
-        #         QgsProject.instance().removeMapLayers([layer.id()])
-        #         # break
-
-        if os.path.exists(filepath):
-            fileDriver.DeleteDataSource(filepath)
-
-        fileDS = fileDriver.CreateDataSource(filepath)
-        newDS = fileDriver.Open(filepath, 1)
-
-        srs = osr.SpatialReference()
-        srs.ImportFromEPSG(28420)
-        newlayer = fileDS.CreateLayer(filename, srs, ogr.wkbPoint)
-
-        # newlayer = fileDS.CopyLayer(templayer, filename, ['OVERWRITE=YES'])
-
-        inLayerDefn = templayer.GetLayerDefn()
-        for i in range(0, inLayerDefn.GetFieldCount()):
-            fieldDefn = inLayerDefn.GetFieldDefn(i)
-            fieldName = fieldDefn.GetName()
-            newlayer.CreateField(fieldDefn)
-
-        for feature in feat_list:
-            newlayer.CreateFeature(feature)
-
-        self.guiUtil.setOutputStyle('black', 'normal', 'Файл успешно сохранен!')
-
-        if newlayer is not None:
-            self.guiUtil.uploadLayer(filepath, filename, 'ogr')
-            self.guiUtil.setOutputStyle('green', 'bold', 'Слой успешно загружен в QGIS!')
-
-        # del outDS, newDS, fileDS
 
     def saveTempLayerToFile(self, templayer, filename, filepath):
         # -------- сохраняем результат в шейпфайл (код рабочий) ----------------------

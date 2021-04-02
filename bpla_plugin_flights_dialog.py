@@ -56,10 +56,10 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.initActiveLayersComboBox()
         self.toolButton_cbreload.setIcon(QIcon(':/plugins/bpla_plugin_flights/icons/icon_reload.png'))
         self.toolButton_cbreload.clicked.connect(self.initActiveLayersComboBox)
-        self.checkBox.setChecked(True)
+        self.checkBox.setChecked(False)
         self.toolButton.clicked.connect(self.getSaveFileName)
         self.pushButton.clicked.connect(self.doResult)
-        self.lineEdit.setText(r'M:\Sourcetree\output\test_5.shp')
+        self.lineEdit.setText(r'M:\Sourcetree\output\test_.shp')
 
         # self.toolButton_plan.clicked.connect(self.getFolderName)
         # self.toolButton_cbreload_2.setIcon(QIcon(':/plugins/bpla_plugin_flights/icons/icon_reload.png'))
@@ -111,11 +111,12 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         createTempLyrDeco = lyr2.exceptionsDecorator(lyr2.createTempLayer(lg),
                                                      '\nНе удалось создать временный слой! ')
         self.getFilepath()
+
         if self.checkBox.isChecked():
             remZeroPointsDeco = lyr2.exceptionsDecorator(lyr2.removeZeroPoints(),
                                                          '\nНе удалось удалить нулевые точки! ')
         # # lyr.mainAzimutCalc()
-        mainAlgorithmDeco = lyr2.exceptionsDecorator(lyr2.mainAzimutCalc(self.filename, self.filepath), '\nНе удалось классифицировать точки! ')
+        mainAlgorithmDeco = lyr2.exceptionsDecorator(lyr2.mainAzimutCalc(self.filename, self.filepath, self.checkBox_delete, self.checkBox_numProfiles), '\nНе удалось классифицировать точки! ')
 
         # saveFileDeco = lyr2.exceptionsDecorator(lyr2.saveToFile(self.filename, self.filepath),
         #                                         '\nНе удалось сохранить/загрузить файл! ')
