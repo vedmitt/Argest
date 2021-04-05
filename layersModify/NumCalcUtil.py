@@ -4,8 +4,8 @@ from datetime import datetime
 
 import ogr
 
-from .ClassificationTool import ClassificationTool
-from .AzimutMathUtil import AzimutMathUtil
+from tools.LayerUtils.ClassificationTool import ClassificationTool
+from tools.LayerUtils.AzimutMathUtil import AzimutMathUtil
 
 
 class NumCalcUtil:

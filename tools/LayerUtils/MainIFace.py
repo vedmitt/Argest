@@ -1,18 +1,6 @@
-import csv
-import os
-from random import randint
-
-from osgeo import ogr, osr
-from qgis._core import QgsProject
-from numba import njit, prange
-
-from .AffineClassification import AffineClassification
 from .ClassificationTool import ClassificationTool
 from .FeatureManagement import FeatureManagement
 from .LayerManagement import LayerManagement
-from .GuiElemIFace import GuiElemIFace
-from .LayerGetter import LayerGetter
-from .NumCalcUtil import NumCalcUtil
 
 
 class MainIFace:
