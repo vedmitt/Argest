@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>395</width>
-    <height>524</height>
+    <height>504</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -24,7 +24,7 @@
       </font>
      </property>
      <property name="text">
-      <string>Введите параметры редактирования: </string>
+      <string>Введите параметры: </string>
      </property>
     </widget>
    </item>
@@ -60,6 +60,20 @@
      </property>
      <property name="checked">
       <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="checkBox_delete">
+     <property name="text">
+      <string>Удалить точки долетов/отлетов</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="checkBox_numProfiles">
+     <property name="text">
+      <string>Пронумеровать профиля</string>
      </property>
     </widget>
    </item>
@@ -107,7 +121,7 @@ p, li { white-space: pre-wrap; }
    <item>
     <widget class="QPushButton" name="pushButton">
      <property name="text">
-      <string>Редактировать слой</string>
+      <string>Запустить</string>
      </property>
     </widget>
    </item>
