@@ -1,5 +1,6 @@
 import math
 from datetime import datetime
+import dateutil.parser
 import os
 from osgeo import ogr, osr
 
@@ -15,19 +16,18 @@ class ClassificationTool:
     def __init__(self, outDS, templayer, guiUtil, filename, filepath):
         self.bufSize = 10
         self.global_num = 0
-        self.data_format = '%Y/%m/%d %H:%M:%S.%f'
-        self.log_lines = []
         self.accuracy = 5
-        self.fieldDist = "DIST"
-        self.fieldDy = "DY"
-        self.fieldDx = "DX"
-        self.fieldAz = "AZIMUTH"
-        self.fieldAzAvg = "AZIMUTH_AVG"
+        # self.log_lines = []
+        # self.fieldDist = "DIST"
+        # self.fieldDy = "DY"
+        # self.fieldDx = "DX"
+        # self.fieldAz = "AZIMUTH"
+        # self.fieldAzAvg = "AZIMUTH_AVG"
+        # self.fieldPass = "NUM_PASS"
+        # self.fieldSpeed = 'SPEED'
         self.fieldGlobalNum = "GLOBAL_NUM"
         self.fieldNum = "FLIGHT_NUM"
         self.fieldClass = "CLASS"
-        self.fieldPass = "NUM_PASS"
-        self.fieldSpeed = 'SPEED'
         self.targetAzimuth = 0
         self.outDS = outDS
         self.templayer = templayer
@@ -71,6 +71,8 @@ class ClassificationTool:
                 if feature.GetField(self.fieldClass) == 'азимут<180' \
                         or feature.GetField(self.fieldClass) == 'азимут>180':
                     newlayer.CreateFeature(feature)
+            else:
+                newlayer.CreateFeature(feature)
 
         self.guiUtil.setOutputStyle('black', 'normal', 'Файл успешно сохранен!')
 
@@ -137,7 +139,7 @@ class ClassificationTool:
         az = AzimutMathUtil()
         control_flights = []
         prev_speed = 20000
-        prev_date = datetime.strptime(feat_list[0].GetField('TIME'), self.data_format)
+        prev_date = dateutil.parser.parse(feat_list[0].GetField('TIME'))
 
         feat_list[0].SetField(self.fieldClass, 'первая точка')  # первая точка - точка взлета
         feat_list[0].SetField(self.fieldGlobalNum, self.global_num)
@@ -151,7 +153,7 @@ class ClassificationTool:
             dist = az.distanceCalc([feat_list[prev_ind].geometry().GetX(), feat_list[prev_ind].geometry().GetY()],
                                    [feat_list[i].geometry().GetX(),
                                     feat_list[i].geometry().GetY()])
-            cur_date = datetime.strptime(feat_list[i].GetField('TIME'), self.data_format)
+            cur_date = dateutil.parser.parse(feat_list[i].GetField('TIME'))
             period = cur_date - prev_date
             if period.total_seconds() != 0:
                 cur_speed = dist / period.total_seconds()
@@ -159,7 +161,7 @@ class ClassificationTool:
                 cur_speed = 156634
 
             # delta_speed = math.fabs(prev_speed - cur_speed)
-            feat_list[i].SetField(self.fieldSpeed, cur_speed)
+            # feat_list[i].SetField(self.fieldSpeed, cur_speed)
 
             # if cur_speed > prev_speed * 3:
             if dist > 10 and period.total_seconds() < 60:
@@ -176,13 +178,13 @@ class ClassificationTool:
                 feat_list[i].SetField(self.fieldGlobalNum, self.global_num)
 
                 # маркировка без окна сглаживания
-                feat_list[i].SetField(self.fieldAz, azimuth)
+                # feat_list[i].SetField(self.fieldAz, azimuth)
                 # feat_list[i].SetField(self.fieldClass, self.classify(azimuth, cur_speed))
 
                 window.addElem(azimuth)
                 j = i - self.bufSize
                 if j >= 0:
-                    feat_list[j].SetField(self.fieldAzAvg, window.getAverage())
+                    # feat_list[j].SetField(self.fieldAzAvg, window.getAverage())
                     feat_list[j].SetField(self.fieldClass, self.classify(window.getAverage(), cur_speed))
 
                 prev_ind = i
@@ -197,51 +199,56 @@ class ClassificationTool:
     def mainAzimutCalc(self, checkBox_delete, checkBox_numProfiles):
         self.guiUtil.setOutputStyle('black', 'normal', '\nНачинаем классификацию точек...')
 
-        # создаем новый столбец
-        self.fm.createNewField(self.fieldGlobalNum, ogr.OFTInteger)
-        self.fm.createNewField(self.fieldAz, ogr.OFTReal)
-        self.fm.createNewField(self.fieldAzAvg, ogr.OFTReal)
-        self.fm.createNewField(self.fieldSpeed, ogr.OFTReal)
-        # # self.createNewField(self.fieldDx, ogr.OFTReal)
-        # # self.createNewField(self.fieldDy, ogr.OFTReal)
-        # self.fm.createNewField(self.fieldDist, ogr.OFTReal)
-        # self.fm.createNewField(self.fieldPass, ogr.OFTInteger)
-        self.fm.createNewField(self.fieldClass, ogr.OFTString)
+        # создаем новые столбцы, если они еще не созданы
+        layerDefinition = self.templayer.GetLayerDefn()
+        fields_list = [layerDefinition.GetFieldDefn(n).name for n in range(layerDefinition.GetFieldCount())]
+        if self.fieldGlobalNum not in fields_list:
+            self.fm.createNewField(self.fieldGlobalNum, ogr.OFTInteger)
+            # self.fm.createNewField(self.fieldAz, ogr.OFTReal)
+            # self.fm.createNewField(self.fieldAzAvg, ogr.OFTReal)
+            # self.fm.createNewField(self.fieldSpeed, ogr.OFTReal)
+            # # self.createNewField(self.fieldDx, ogr.OFTReal)
+            # # self.createNewField(self.fieldDy, ogr.OFTReal)
+            # self.fm.createNewField(self.fieldDist, ogr.OFTReal)
+            # self.fm.createNewField(self.fieldPass, ogr.OFTInteger)
+            self.fm.createNewField(self.fieldClass, ogr.OFTString)
 
-        if checkBox_numProfiles.isChecked():
-            self.fm.createNewField(self.fieldNum, ogr.OFTInteger)
+            if checkBox_numProfiles.isChecked():
+                self.fm.createNewField(self.fieldNum, ogr.OFTInteger)
 
-        # переместим фичи из временного слоя в список
-        feat_list = self.fm.tempLayerToListFeat(self.templayer)
+            # переместим фичи из временного слоя в список
+            feat_list = self.fm.tempLayerToListFeat(self.templayer)
 
-        # отсортируем список по времени
-        feat_list = self.fm.sortListByLambda(feat_list, 'TIME')
+            # отсортируем список по времени
+            feat_list = self.fm.sortListByLambda(feat_list, 'TIME')
 
-        # вычислим целевой азимут
-        self.targetAzimuth = 30
-        # self.targetAzimuth = self.getMostFreqAzimuth(feat_list)
-        self.guiUtil.setOutputStyle('black', 'normal', 'Целевой азимут: ' + str(self.targetAzimuth))
+            # вычислим целевой азимут
+            # self.targetAzimuth = 30
+            self.targetAzimuth = self.getMostFreqAzimuth(feat_list)
+            self.guiUtil.setOutputStyle('black', 'normal', 'Целевой азимут: ' + str(self.targetAzimuth))
 
-        # # проходим по всем азимутам и сравниваем с целевым
-        num_pass = 1
-        control_flights = self.azimuthLoop(feat_list, num_pass)
+            # # проходим по всем азимутам и сравниваем с целевым
+            num_pass = 1
+            control_flights = self.azimuthLoop(feat_list, num_pass)
 
-        # self.guiUtil.setOutputStyle('black', 'normal', str(len(control_flights)))
-
-        # повторяем процедуру для полетов, совершенных одновременно
-        while len(control_flights) > 0:
-            num_pass += 1
-            control_flights = self.azimuthLoop(control_flights, num_pass)
             # self.guiUtil.setOutputStyle('black', 'normal', str(len(control_flights)))
 
-        self.guiUtil.setOutputStyle('green', 'bold', 'Точки успешно классифицированы!')
-        # self.outDS.SyncToDisk()
+            # повторяем процедуру для полетов, совершенных одновременно
+            while len(control_flights) > 0:
+                num_pass += 1
+                control_flights = self.azimuthLoop(control_flights, num_pass)
+                # self.guiUtil.setOutputStyle('black', 'normal', str(len(control_flights)))
 
-        # сортируем по глобальному номеру и нумеруем профиля
-        if checkBox_numProfiles.isChecked():
-            feat_list = self.numerateProfiles(feat_list)
+            self.guiUtil.setOutputStyle('green', 'bold', 'Точки успешно классифицированы!')
 
-        # сохраним основной файл
+            # сортируем по глобальному номеру и нумеруем профиля
+            if checkBox_numProfiles.isChecked():
+                feat_list = self.numerateProfiles(feat_list)
+        else:
+            # переместим фичи из временного слоя в список
+            feat_list = self.fm.tempLayerToListFeat(self.templayer)
+
+        # сохраним основной файл (в любом случае)
         try:
             self.saveFeatListToFile(feat_list, self.templayer, self.filename, self.filepath, checkBox_delete)
         except Exception as err:
