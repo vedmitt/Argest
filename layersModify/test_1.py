@@ -6,9 +6,9 @@
 # yourdate = dateutil.parser.parse(dataformat1)
 # print(yourdate)
 
-# vlayer = QgsVectorLayer(r"M:\Sourcetree\input_data\Jarchiha\Jarchiha_all_data.shp", "archiha_all_data", "ogr")
+# vlayer = QgsVectorLayer(r"M:\Sourcetree\input_data\Jarchiha\Jarchiha_all_data.shp", "Jarchiha_all_data", "ogr")
 
-from osgeo import ogr
+from osgeo import ogr, osr
 import os
 
 DriverName = "ESRI Shapefile"      # e.g.: GeoJSON, ESRI Shapefile

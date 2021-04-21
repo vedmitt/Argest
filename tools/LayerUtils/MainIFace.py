@@ -46,11 +46,11 @@ class MainIFace:
 
             FeatureManagement(self.outDS, self.temLyr, self.guiUtil).removeZeroPointsFromMemory()
 
-    def saveToFile(self, feat_list, filename, filepath):
-        if filepath is not None:
-            LayerManagement(self.guiUtil).saveFeatListToFile(feat_list, filename, filepath)
-        else:
-            self.guiUtil.setOutputStyle('red', 'bold', 'Введите данные в форму!\n')
+    # def saveToFile(self, feat_list, filename, filepath):
+    #     if filepath is not None:
+    #         ClassificationTool(self.guiUtil).saveFeatListToFile(feat_list, filename, filepath)
+    #     else:
+    #         self.guiUtil.setOutputStyle('red', 'bold', 'Введите данные в форму!\n')
 
     def mainAzimutCalc(self, filename, filepath, checkBox_delete, checkBox_numProfiles):
         ClassificationTool(self.outDS, self.temLyr, self.guiUtil, filename, filepath).mainAzimutCalc(checkBox_delete, checkBox_numProfiles)
