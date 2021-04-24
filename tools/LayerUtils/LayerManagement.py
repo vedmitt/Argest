@@ -3,7 +3,6 @@ import os
 
 from osgeo import osr, ogr
 from qgis._core import QgsProject
-from numba import njit, prange
 
 from .AzimutMathUtil import AzimutMathUtil
 

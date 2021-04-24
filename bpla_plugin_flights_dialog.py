@@ -59,26 +59,18 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.checkBox.setChecked(False)
         self.toolButton.clicked.connect(self.getSaveFileName)
         self.pushButton.clicked.connect(self.doResult)
-        self.lineEdit.setText(r'/Users/ronya/My_Documents/output/test.shp')
-
-        # self.toolButton_plan.clicked.connect(self.getFolderName)
-        # self.toolButton_cbreload_2.setIcon(QIcon(':/plugins/bpla_plugin_flights/icons/icon_reload.png'))
-        # self.toolButton_cbreload_2.clicked.connect(self.initActiveLayersComboBox_2)
+        self.lineEdit.setText('')
+        # self.lineEdit.setText(r'/Users/ronya/My_Documents/output/test.shp')
 
     def initActiveLayersComboBox(self):
         lg = LayerGetter()
         dictLyr = lg.getActiveLayers()
         GuiElemIFace(None).setComboBox(self.comboBox, dictLyr)
 
-    # def initActiveLayersComboBox_2(self):
-    #     lg = LayerGetter()
-    #     dictLyr = lg.getActiveLayers(iface.mapCanvas())
-    #     del dictLyr[self.comboBox.currentText()]
-    #     GuiElemIFace(None).setComboBox(self.comboBox_2, dictLyr)
-
     def getSaveFileName(self):
         dlg = QtWidgets.QFileDialog(self)
-        fn = dlg.getSaveFileName(self, 'Save file', r'/Users/ronya/My_Documents/output/test.shp', filter='*.shp')[0]
+        # fn = dlg.getSaveFileName(self, 'Save file', r'/Users/ronya/My_Documents/output/test.shp', filter='*.shp')[0]
+        fn = dlg.getSaveFileName(self, 'Save file', r'test.shp', filter='*.shp')[0]
         self.lineEdit.setText(fn)
 
     # def getFolderName(self):

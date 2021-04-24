@@ -1,12 +1,9 @@
 import math
-from datetime import datetime
 import dateutil.parser
 import os
 from osgeo import ogr, osr
 
 from .AzimutMathUtil import AzimutMathUtil
-from .LayerManagement import LayerManagement
-from .LogFileTool import LogFileTool
 from .FeatureManagement import FeatureManagement
 from .BufferAzimuth import BufferAzimuth
 
@@ -104,11 +101,8 @@ class ClassificationTool:
         res = []
         i = 1
         prev_ind = 0
-        az = AzimutMathUtil()
         while i < len(feat_list):
-            a = az.azimutCalc([feat_list[prev_ind].geometry().GetX(), feat_list[prev_ind].geometry().GetY()],
-                              [feat_list[i].geometry().GetX(),
-                               feat_list[i].geometry().GetY()])
+            a = self.getAzimuth(feat_list[prev_ind], feat_list[i])
             z = int((a + step / 2) % 360 // step) * 10
             res.append(z)
 
@@ -120,61 +114,72 @@ class ClassificationTool:
             targetAzimuth -= 180
         return targetAzimuth
 
+    def getAzimuth(self, prev_i, curr_i):
+        azimuth = AzimutMathUtil().azimutCalc([prev_i.geometry().GetX(), prev_i.geometry().GetY()],
+                                              [curr_i.geometry().GetX(), curr_i.geometry().GetY()])
+        return azimuth
+
+    def getDistance(self, prev_i, curr_i):
+        dist = AzimutMathUtil().distanceCalc([prev_i.geometry().GetX(), prev_i.geometry().GetY()],
+                                             [curr_i.geometry().GetX(), curr_i.geometry().GetY()])
+        return dist
+
+    def getDate(self, elem):
+        date = dateutil.parser.parse(elem.GetField('TIME'))
+        return date
+
+    def getSpeed(self, prev_i, curr_i):
+        dist = self.getDistance(prev_i, curr_i)
+        period = self.getDate(curr_i) - self.getDate(prev_i)
+
+        if period.total_seconds() != 0:
+            speed = dist / period.total_seconds()
+            return speed
+        else:
+            return 99999
+
     def classify(self, azimuth, speed):
         if math.fabs(self.targetAzimuth - azimuth) <= self.accuracy:
             return 4
         elif math.fabs(self.targetAzimuth + 180 - azimuth) <= self.accuracy:
             return 3
-        elif speed == 0.0:
+        elif speed < 0.000001:
             return 0
         else:
             return 2
 
     def azimuthLoop(self, feat_list, numPass):
-        prev_ind = 0
-        i = 1
-        az = AzimutMathUtil()
         control_flights = []
-        prev_date = dateutil.parser.parse(feat_list[0].GetField('TIME'))
 
+        # первая точка:
         feat_list[0].SetField(self.fieldClass, 1)  # первая точка - точка взлета
         feat_list[0].SetField(self.fieldGlobalNum, self.global_num)
         self.global_num += 1
-        # extra fields:
-        feat_list[0].SetField(self.fieldCurSpeed, 0)
-        feat_list[0].SetField(self.fieldAvgSpeed, 0)
 
         # создадим окно сглаживания
         window = BufferAzimuth(self.bufSize, self.targetAzimuth, self.accuracy)
 
+        prev_date = self.getDate(feat_list[0])
+
         j = 0
-        avg_speed_sum = 0
+        prev_ind = 0
+        i = 1
+
         while i < len(feat_list):
-            dist = az.distanceCalc([feat_list[prev_ind].geometry().GetX(), feat_list[prev_ind].geometry().GetY()],
-                                   [feat_list[i].geometry().GetX(),
-                                    feat_list[i].geometry().GetY()])
-            cur_date = dateutil.parser.parse(feat_list[i].GetField('TIME'))
+            dist = self.getDistance(feat_list[prev_ind], feat_list[i])
+            cur_date = self.getDate(feat_list[i])
             period = cur_date - prev_date
             if period.total_seconds() != 0:
                 cur_speed = dist / period.total_seconds()
-            # else:
-            #     cur_speed = 156634
+            else:
+                cur_speed = 156634
 
-            avg_speed_sum += cur_speed
-            avg_speed = avg_speed_sum / i
+            # feat_list[i].SetField(self.fieldSpeed, cur_speed)
 
-            # запишем значение скорости текущей и средней
-            feat_list[i].SetField(self.fieldCurSpeed, cur_speed)
-            feat_list[i].SetField(self.fieldAvgSpeed, avg_speed)
-
-            if cur_speed > avg_speed * 2:
-            # if dist > 10 and period.total_seconds() < 60:
+            if dist > 10 and period.total_seconds() < 60:
                 control_flights.append(feat_list[i])
             else:
-                azimuth = az.azimutCalc(
-                    [feat_list[prev_ind].geometry().GetX(), feat_list[prev_ind].geometry().GetY()],
-                    [feat_list[i].geometry().GetX(),
-                     feat_list[i].geometry().GetY()])
+                azimuth = self.getAzimuth(feat_list[prev_ind], feat_list[i])
 
                 # Запишем значение азимута и номера фактора в отдельный столбец
                 feat_list[i].SetField(self.fieldGlobalNum, self.global_num)
@@ -186,11 +191,12 @@ class ClassificationTool:
                 window.addElem(azimuth)
                 j = i - self.bufSize
                 if j >= 0:
+                    # feat_list[j].SetField(self.fieldAzAvg, window.getAverage())
                     feat_list[j].SetField(self.fieldClass, self.classify(window.getAverage(), cur_speed))
 
                 prev_ind = i
                 prev_date = cur_date
-                prev_speed = cur_speed
+                # prev_speed = cur_speed
 
             i += 1
             self.global_num += 1
@@ -214,8 +220,8 @@ class ClassificationTool:
             self.fm.createNewField(self.fieldGlobalNum, ogr.OFTInteger)
             self.fm.createNewField(self.fieldClass, ogr.OFTInteger)
             # extra fields:
-            self.fm.createNewField(self.fieldCurSpeed, ogr.OFTReal)
-            self.fm.createNewField(self.fieldAvgSpeed, ogr.OFTReal)
+            # self.fm.createNewField(self.fieldCurSpeed, ogr.OFTReal)
+            # self.fm.createNewField(self.fieldAvgSpeed, ogr.OFTReal)
 
             if checkBox_numProfiles.isChecked():
                 self.fm.createNewField(self.fieldNum, ogr.OFTInteger)
@@ -228,8 +234,7 @@ class ClassificationTool:
 
             # вычислим целевой азимут
             try:
-                self.targetAzimuth = 30
-                # self.targetAzimuth = self.getMostFreqAzimuth(feat_list)
+                self.targetAzimuth = self.getMostFreqAzimuth(feat_list)
                 self.guiUtil.setOutputStyle('black', 'normal', 'Целевой азимут: ' + str(self.targetAzimuth))
             except Exception as err:
                 self.guiUtil.setOutputStyle('red', 'bold', '\nНе удалось вычислить целевой азимут! ' + str(err))
@@ -245,6 +250,9 @@ class ClassificationTool:
                 while len(control_flights) > 0:
                     num_pass += 1
                     control_flights = self.azimuthLoop(control_flights, num_pass)
+                    if num_pass > 100:
+                        self.guiUtil.setOutputStyle('red', 'bold', '\nЗациклился!')
+                        break
                     # self.guiUtil.setOutputStyle('black', 'normal', str(len(control_flights)))
 
                 self.guiUtil.setOutputStyle('green', 'bold', 'Точки успешно классифицированы!')

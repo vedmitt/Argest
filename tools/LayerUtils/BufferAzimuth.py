@@ -1,8 +1,5 @@
 import math
 
-import numpy
-
-
 class BufferAzimuth:
     def __init__(self, bufSize, targetAz, accuracy):
         self.windowSize = bufSize

@@ -25,7 +25,6 @@ from qgis.PyQt.QtWidgets import QAction, QMenu
 from .resources import *
 # Import the code for the dialog
 from .bpla_plugin_flights_dialog import bpla_plugin_flightsDialog
-from .tools.numit_plugin_dialog import numit_pluginDialog
 import os.path
 
 
@@ -169,23 +168,23 @@ class bpla_plugin_flights:
             callback=self.run,
             parent=self.iface.mainWindow())
 
-        icon_path = ':/plugins/bpla_plugin_flights/icons/icon_1.png'
-        self.add_action(
-            icon_path,
-            text=self.tr(u'numit_plugin'),
-            callback=self.runum,
-            parent=numit_pluginDialog(self.iface.mainWindow()))
+        # icon_path = ':/plugins/bpla_plugin_flights/icons/icon_1.png'
+        # self.add_action(
+        #     icon_path,
+        #     text=self.tr(u'numit_plugin'),
+        #     callback=self.runum,
+        #     parent=numit_pluginDialog(self.iface.mainWindow()))
 
-    def runum(self):
-        dlg = numit_pluginDialog(self.iface.mainWindow())
-        dlg.show()
-        # Run the dialog event loop
-        result = dlg.exec_()
-        # See if OK was pressed
-        if result:
-            # Do something useful here - delete the line containing pass and
-            # substitute with your code.
-            pass
+    # def runum(self):
+    #     dlg = numit_pluginDialog(self.iface.mainWindow())
+    #     dlg.show()
+    #     # Run the dialog event loop
+    #     result = dlg.exec_()
+    #     # See if OK was pressed
+    #     if result:
+    #         # Do something useful here - delete the line containing pass and
+    #         # substitute with your code.
+    #         pass
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
