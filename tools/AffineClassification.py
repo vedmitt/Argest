@@ -1,16 +1,7 @@
-import math
-from datetime import datetime
-from statistics import mode
-import numpy as np
-
-from PyQt5.QtCore import QVariant
 from osgeo import ogr
-from osgeo.ogr import Geometry
-from qgis._core import QgsVectorDataProvider, QgsFeatureRequest, QgsField
 
 from .AzimutMathUtil import AzimutMathUtil
-from .FeatureManagement import FeatureManagement
-from .LogFileTool import LogFileTool
+from layersModify.FeatureManagement import FeatureManagement
 
 
 class AffineClassification:
@@ -104,7 +95,7 @@ class AffineClassification:
         return new_coordinates
 
     def mainAzimutCalc(self):
-        self.guiUtil.setOutputStyle('black', 'normal', '\nНачинаем классификацию точек...')
+        self.guiUtil.setOutputStyle(0, '\nНачинаем классификацию точек...')
 
         # создаем новый столбец
         # self.fm.createNewField(self.fieldNum, ogr.OFTInteger)
@@ -125,13 +116,13 @@ class AffineClassification:
         # вычислим целевой азимут
         # self.targetAzimuth = 30
         self.targetAzimuth = self.getMostFreqAzimuth(feat_list)
-        self.guiUtil.setOutputStyle('black', 'normal', 'Целевой азимут: ' + str(self.targetAzimuth))
+        self.guiUtil.setOutputStyle(0, 'Целевой азимут: ' + str(self.targetAzimuth))
 
         # выполним аффинные преобразования относительно первой точки
         new_coor = self.affineCoordinate(feat_list, self.targetAzimuth)
-        self.guiUtil.setOutputStyle('black', 'normal', 'Аффиное преобразование выполнено!')
+        self.guiUtil.setOutputStyle(0, 'Аффиное преобразование выполнено!')
         new_azimuth = self.getNewAzimuth(feat_list)
-        self.guiUtil.setOutputStyle('black', 'normal', 'Новый азимут: ' + str(new_azimuth))
+        self.guiUtil.setOutputStyle(0, 'Новый азимут: ' + str(new_azimuth))
 
         # с помощью новых координат вычслим гистограмму по У и узнаем шаг профилей.
 

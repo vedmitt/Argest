@@ -12,7 +12,7 @@ class FeatureManagement:
     def removeZeroPointsFromMemory(self):
         # далее работаем с временным слоем
         # -------- удаляем нулевые точки ---------------
-        self.guiUtil.setOutputStyle('black', 'normal', '\nНачинаем удаление нулевых точек...')
+        self.guiUtil.setOutputStyle(0, '\nНачинаем удаление нулевых точек...')
         for i in range(self.templayer.GetFeatureCount()):
             feat = self.templayer.GetNextFeature()
             if feat is not None:
@@ -21,9 +21,9 @@ class FeatureManagement:
                     self.delFeatByID(feat.GetFID())
         self.templayer.ResetReading()
 
-        self.guiUtil.setOutputStyle('green', 'bold', 'Нулевые точки успешно удалены!')
-        self.guiUtil.setOutputStyle('black', 'normal', 'Количество точек после удаления нулевых: ' +
-                                        str(self.templayer.GetFeatureCount()))
+        self.guiUtil.setOutputStyle(0, 'Нулевые точки успешно удалены!')
+        self.guiUtil.setOutputStyle(0, 'Количество точек после удаления нулевых: ' +
+                                    str(self.templayer.GetFeatureCount()))
         self.outDS.SyncToDisk()
 
     def delFeatByID(self, ID):

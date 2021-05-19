@@ -4,7 +4,7 @@ import os
 from osgeo import osr, ogr
 from qgis._core import QgsProject
 
-from .AzimutMathUtil import AzimutMathUtil
+from tools.AzimutMathUtil import AzimutMathUtil
 
 
 class LayerManagement:
@@ -76,9 +76,9 @@ class LayerManagement:
 
         self.templayer = self.outDS.CopyLayer(in_lyr, 'temp_layer', ['OVERWRITE=YES'])
 
-        self.guiUtil.setOutputStyle('black', 'normal', 'Количество точек в слое: ' + str(
+        self.guiUtil.setOutputStyle(0, 'Количество точек в слое: ' + str(
             self.templayer.GetFeatureCount()))
-        self.guiUtil.setOutputStyle('green', 'bold', 'Временный слой успешно создан!')
+        self.guiUtil.setOutputStyle(0, 'Временный слой успешно создан!')
         # del self.inDS
         return self.outDS, self.templayer
 
@@ -86,7 +86,7 @@ class LayerManagement:
 
     def saveTempLayerToFile(self, templayer, filename, filepath):
         # -------- сохраняем результат в шейпфайл (код рабочий) ----------------------
-        self.guiUtil.setOutputStyle('black', 'normal', '\nНачинаем сохранение файла...')
+        self.guiUtil.setOutputStyle(0, '\nНачинаем сохранение файла...')
 
         fileDriver = ogr.GetDriverByName('ESRI Shapefile')
 
@@ -104,11 +104,11 @@ class LayerManagement:
 
         newlayer = fileDS.CopyLayer(templayer, filename, ['OVERWRITE=YES'])
 
-        self.guiUtil.setOutputStyle('black', 'normal', 'Файл успешно сохранен!')
+        self.guiUtil.setOutputStyle(0, 'Файл успешно сохранен!')
 
         if newlayer is not None:
             self.guiUtil.uploadLayer(filepath, filename, 'ogr')
-            self.guiUtil.setOutputStyle('green', 'bold', 'Слой успешно загружен в QGIS!')
+            self.guiUtil.setOutputStyle(0, 'Слой успешно загружен в QGIS!')
 
         # del outDS, newDS, fileDS
 

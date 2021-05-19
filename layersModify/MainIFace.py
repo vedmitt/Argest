@@ -1,4 +1,4 @@
-from .ClassificationTool import ClassificationTool
+from tools.ClassificationTool import ClassificationTool
 from .FeatureManagement import FeatureManagement
 from .LayerManagement import LayerManagement
 
@@ -18,7 +18,7 @@ class MainIFace:
             try:
                 function_to_decorate()  # Сама функция
             except Exception as err:
-                self.guiUtil.setOutputStyle('red', 'bold', errStr + str(err))
+                self.guiUtil.setOutputStyle(0, errStr + str(err))
 
         return the_wrapper_around_the_original_function
 
@@ -27,7 +27,7 @@ class MainIFace:
         # lg = LayerGetter()
         # lg.getLayer(curLayer)
 
-        self.guiUtil.setOutputStyle('black', 'normal', 'Создаем новый слой...')
+        self.guiUtil.setOutputStyle(0, 'Создаем новый слой...')
 
         ft = LayerManagement(self.guiUtil)
         if lg.driverName == "Delimited text file":
@@ -40,9 +40,8 @@ class MainIFace:
     def removeZeroPoints(self):
         # далее работаем с временным слоем
         if self.temLyr is not None:
-            self.guiUtil.setOutputStyle('black', 'normal',
-                                                 'Количество точек во временном слое: ' + str(
-                                                     self.temLyr.GetFeatureCount()))
+            self.guiUtil.setOutputStyle(0, 'Количество точек во временном слое: ' + str(
+                self.temLyr.GetFeatureCount()))
 
             FeatureManagement(self.outDS, self.temLyr, self.guiUtil).removeZeroPointsFromMemory()
 
@@ -53,7 +52,8 @@ class MainIFace:
     #         self.guiUtil.setOutputStyle('red', 'bold', 'Введите данные в форму!\n')
 
     def mainAzimutCalc(self, filename, filepath, checkBox_delete, checkBox_numProfiles):
-        ClassificationTool(self.outDS, self.temLyr, self.guiUtil, filename, filepath).mainAzimutCalc(checkBox_delete, checkBox_numProfiles)
+        ClassificationTool(self.outDS, self.temLyr, self.guiUtil, filename, filepath).mainAzimutCalc(checkBox_delete,
+                                                                                                     checkBox_numProfiles, )
         # ClassificationTool_2(self.outDS, self.temLyr, self.guiUtil).mainAzimutCalc()
 
     # def numbersForFlights(self, vlayerstr):

@@ -23,6 +23,9 @@
 """
 import os
 
+from PyQt5.QtCore import QVariant
+from qgis._core import *
+
 from PyQt5.QtGui import QIcon
 from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
@@ -31,12 +34,11 @@ from PyQt5.QtGui import *
 from time import perf_counter
 
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
-from qgis.utils import iface
-
-from .tools.LayerUtils.ClassificationTool import ClassificationTool
-from .tools.LayerUtils.MainIFace import MainIFace
-from .tools.LayerUtils.LayerGetter import LayerGetter
-from .tools.LayerUtils.GuiElemIFace import GuiElemIFace
+from .tools.FeaturesList import FeaturesList
+from .tools.ClassificationTool import ClassificationTool
+from .tools.Feature import Feature
+from .tools.LayerManager import LayerManager
+from .tools.GuiElemIFace import GuiElemIFace
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'bpla_plugin_flights_dialog_base.ui'))
@@ -59,60 +61,73 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.checkBox.setChecked(False)
         self.toolButton.clicked.connect(self.getSaveFileName)
         self.pushButton.clicked.connect(self.doResult)
-        self.lineEdit.setText('')
-        # self.lineEdit.setText(r'/Users/ronya/My_Documents/output/test.shp')
+        # self.lineEdit.setText('')
+        self.lineEdit.setText(r'/Users/ronya/My_Documents/output/test.shp')
 
     def initActiveLayersComboBox(self):
-        lg = LayerGetter()
+        self.comboBox.clear()
+        lg = LayerManager()
         dictLyr = lg.getActiveLayers()
-        GuiElemIFace(None).setComboBox(self.comboBox, dictLyr)
+        self.comboBox.addItems(dictLyr.keys())
+        self.comboBox.show()
 
     def getSaveFileName(self):
         dlg = QtWidgets.QFileDialog(self)
-        # fn = dlg.getSaveFileName(self, 'Save file', r'/Users/ronya/My_Documents/output/test.shp', filter='*.shp')[0]
-        fn = dlg.getSaveFileName(self, 'Save file', r'test.shp', filter='*.shp')[0]
+        fn = dlg.getSaveFileName(self, 'Save file', r'/Users/ronya/My_Documents/output/test.shp', filter='*.shp')[0]
         self.lineEdit.setText(fn)
-
-    # def getFolderName(self):
-    #     directory = str(QtWidgets.QFileDialog.getExistingDirectory())
-    #     self.lineEdit_plan.setText('{}'.format(directory))
 
     def getFilepath(self):
         # get file name from line edit
-        self.filepath = None
         if self.lineEdit.text() != '':
-            self.filepath = self.lineEdit.text()
-            fn = os.path.basename(self.filepath)
+            filepath = self.lineEdit.text()
+            fn = os.path.basename(filepath)
             fn = fn.split('.shp')
-            self.filename = fn[0]
+            filename = fn[0]
+            return filepath, filename
+        else:
+            return None
 
 
     def doResult(self):
         self.textEdit.setText('')
         start = perf_counter()
+        guiUtil = GuiElemIFace(self.textEdit)
+        lg = LayerManager()
+        file_attr = self.getFilepath()
+        layerName = self.comboBox.currentText()
+        features = None
 
-        # lyr = LyrMainTool()
-        # lyr.guiUtil = GuiElemIFace(self.textEdit)
-        # if self.lineEdit_plan.text() != '':
-        #     lyr.createOnePlanLayer(self.lineEdit_plan.text())
-        # else:
-        #     lyr.createTempLayer(self.comboBox_2.currentText())
+        if file_attr is None or layerName == '':
+            guiUtil.setOutputStyle([-1, 'Файл для сохранения не выбран! '])
+        else:
+            try:
+                # создаем вектор qgis
+                lg.getLayer(layerName)
+                vlayer = QgsVectorLayer(lg.layerpath, lg.layername, "ogr")
 
-        lyr2 = MainIFace(GuiElemIFace(self.textEdit))
-        lg = LayerGetter()
-        lg.getLayer(self.comboBox.currentText())
-        createTempLyrDeco = lyr2.exceptionsDecorator(lyr2.createTempLayer(lg),
-                                                     '\nНе удалось создать временный слой! ')
-        self.getFilepath()
+                features = FeaturesList(vlayer.fields(), vlayer.getFeatures())
+                if self.checkBox.isChecked():
+                    features.removeNullPoints()
 
-        if self.checkBox.isChecked():
-            remZeroPointsDeco = lyr2.exceptionsDecorator(lyr2.removeZeroPoints(),
-                                                         '\nНе удалось удалить нулевые точки! ')
-        # # lyr.mainAzimutCalc()
-        mainAlgorithmDeco = lyr2.exceptionsDecorator(lyr2.mainAzimutCalc(self.filename, self.filepath, self.checkBox_delete, self.checkBox_numProfiles), '\nНе удалось классифицировать точки! ')
+            except Exception as err:
+                guiUtil.setOutputStyle([-1, 'Файл не создан! ' + str(err)])
 
-        # saveFileDeco = lyr2.exceptionsDecorator(lyr2.saveToFile(self.filename, self.filepath),
-        #                                         '\nНе удалось сохранить/загрузить файл! ')
+            # основной алгоритм
+            try:
+                tool = ClassificationTool(GuiElemIFace(self.textEdit))
+                features = tool.mainAzimutCalc(features, self.checkBox_numProfiles.isChecked())
+            except Exception as err:
+                guiUtil.setOutputStyle([-1, '\nНе удалось классифицировать точки! ' + str(err)])
+
+            try:
+                if self.checkBox_delete.isChecked():
+                    features.removeSpoiledPoints()
+
+                # записываем объекты в новый слой
+                mess = lg.saveToFile("ESRI Shapefile", "UTF-8", file_attr, features)
+                guiUtil.setOutputStyle(mess)
+            except Exception as err:
+                guiUtil.setOutputStyle([-1, '\nНе удалось сохранить/загрузить файл! ' + str(err)])
 
         end = perf_counter()
-        GuiElemIFace(self.textEdit).setOutputStyle('black', 'normal', 'Время работы плагина: ' + str(end - start))
+        guiUtil.setOutputStyle([0, '\nВремя работы плагина: ' + str(end - start)])
