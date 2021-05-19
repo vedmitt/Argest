@@ -61,8 +61,8 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.checkBox.setChecked(False)
         self.toolButton.clicked.connect(self.getSaveFileName)
         self.pushButton.clicked.connect(self.doResult)
-        # self.lineEdit.setText('')
-        self.lineEdit.setText(r'/Users/ronya/My_Documents/output/test.shp')
+        self.lineEdit.setText('')
+        # self.lineEdit.setText(r'/Users/ronya/My_Documents/output/test.shp')
 
     def initActiveLayersComboBox(self):
         self.comboBox.clear()
