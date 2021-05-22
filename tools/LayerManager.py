@@ -1,3 +1,5 @@
+import os
+
 from PyQt5.QtCore import QVariant
 from PyQt5.QtGui import QColor, QFont
 from qgis._core import *
@@ -31,25 +33,29 @@ class LayerManager:
 
 
     def getLayer(self, layerstr):
-        self.layer = self.getActiveLayers().get(layerstr)
+        layer = self.getActiveLayers().get(layerstr)
 
-        if self.layer is not None:
-            self.layername = self.layer.name()
-            self.driverName = self.layer.dataProvider().storageType()
-            cur_lyr_path = self.layer.dataProvider().dataSourceUri()
+        if layer is not None:
+            layername = layer.name()
+            driverName = layer.dataProvider().storageType()
+            uri = layer.dataProvider().dataSourceUri()
 
-            if self.driverName == 'ESRI Shapefile':
-                char_arr = cur_lyr_path.split('|')
-                self.layerpath = char_arr[0]
+            if driverName == 'ESRI Shapefile':
+                char_arr = uri.split('|')
+                layerpath = char_arr[0]
+                return QgsVectorLayer(layerpath, layername, "ogr")
 
-            elif self.driverName == 'Delimited text file':
-                fn = cur_lyr_path.split('?')
-                fn1 = fn[0].split('///')
-                self.layerpath = fn1[1]
-                attr = fn[1].split('&')
-                for i in range(len(attr)):
-                    elem = attr[i].split('=')
-                    self.csvFileAttrs.setdefault(elem[0], elem[1])
+            elif driverName == 'Delimited text file':
+                # uri = "file:///Users/ronya/My_Documents/input_data/20210517_Magn_Data_All/Group_1/20210503_Magn_Group_1_coord.txt?type=csv&delimiter=%5Ct&xField=LON&yField=LAT&zField=ALT".format(os.getcwd(), "x", "y")
+                # fn = uri.split('?')
+                # fn1 = fn[0].split('///')
+                # self.layerpath = fn1[1]
+                # attr = fn[1].split('&')
+                # for i in range(len(attr)):
+                #     elem = attr[i].split('=')
+                #     self.csvFileAttrs.setdefault(elem[0], elem[1])
+                return QgsVectorLayer(uri, layername, 'delimitedtext')
+
 
     def uploadLayer(self, filepath, filename, typeOfFile):
         # show our new layer in qgis
@@ -58,6 +64,7 @@ class LayerManager:
             return -1, 'Не удалось загрузить слой в оболочку!'
         else:
             return 1, '\nСлой успешно сохранен и загружен в QGIS!'
+
 
     def saveToFile(self, driverName, fileEncoding, file_attr, features):
         newfields = QgsFields()

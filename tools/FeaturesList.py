@@ -5,7 +5,8 @@ from .Feature import Feature
 
 
 class FeaturesList:
-    typex = {'Integer64': QVariant.Int, 'Real': QVariant.Double, 'String': QVariant.String}
+    typex = {'Integer64': QVariant.Int, 'Real': QVariant.Double, 'String': QVariant.String,
+             'integer': QVariant.Int, 'double': QVariant.Double, 'text': QVariant.String}
 
     def __init__(self, vfields_dict, vfeatures):
         self.fields_types_dict = {}

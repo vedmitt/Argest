@@ -55,14 +55,37 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-        self.initActiveLayersComboBox()
+        # self.initActiveLayersComboBox()
         self.toolButton_cbreload.setIcon(QIcon(':/plugins/bpla_plugin_flights/icons/icon_reload.png'))
         self.toolButton_cbreload.clicked.connect(self.initActiveLayersComboBox)
-        self.checkBox.setChecked(False)
+        # self.checkBox.setChecked(False)
         self.toolButton.clicked.connect(self.getSaveFileName)
+        self.toolButton_folder.clicked.connect(self.getInputFolder)
         self.pushButton.clicked.connect(self.doResult)
-        self.lineEdit.setText('')
+        # self.lineEdit.setText('')
+        # self.lineEdit_folder.setText('')
         # self.lineEdit.setText(r'/Users/ronya/My_Documents/output/test.shp')
+        # self.lineEdit_folder.setText(r'/Users/ronya/My_Documents/output/test_karelia')
+        self.initInputFolderLine()
+        self.radioButton_cb.clicked.connect(self.initComboBox)
+        self.radioButton_folder.clicked.connect(self.initInputFolderLine)
+
+    def initComboBox(self):
+        self.comboBox.setEnabled(True)
+        self.toolButton_cbreload.setEnabled(True)
+        self.initActiveLayersComboBox()
+        self.lineEdit_folder.setEnabled(False)
+        self.toolButton_folder.setEnabled(False)
+        self.lineEdit.setText(r'/Users/ronya/My_Documents/output/test.shp')
+
+    def initInputFolderLine(self):
+        # self.comboBox.clear()
+        self.comboBox.setEnabled(False)
+        self.toolButton_cbreload.setEnabled(False)
+        self.lineEdit_folder.setText(r'/Users/ronya/My_Documents/input_data/20210517_Magn_Data_All/Group_1')
+        self.lineEdit.setText(r'/Users/ronya/My_Documents/output/test_karelia')
+        self.lineEdit_folder.setEnabled(True)
+        self.toolButton_folder.setEnabled(True)
 
     def initActiveLayersComboBox(self):
         self.comboBox.clear()
@@ -71,63 +94,104 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.comboBox.addItems(dictLyr.keys())
         self.comboBox.show()
 
+    def getInputFolder(self):
+        dlg = QtWidgets.QFileDialog(self)
+        fn = dlg.getExistingDirectory(self, r'/Users/ronya/My_Documents/input_data/20210517_Magn_Data_All/Group_1')
+        self.lineEdit_folder.setText(fn)
+
     def getSaveFileName(self):
         dlg = QtWidgets.QFileDialog(self)
-        fn = dlg.getSaveFileName(self, 'Save file', r'/Users/ronya/My_Documents/output/test.shp', filter='*.shp')[0]
+        if self.radioButton_cb.isChecked() or self.checkBox_join_files.isChecked():
+            fn = dlg.getOpenFileName(self, 'Save file', r'/Users/ronya/My_Documents/output/test.shp', filter='*.shp')[0]
+        else:
+            fn = dlg.getExistingDirectory(self, r'/Users/ronya/My_Documents/output/test_karelia')
         self.lineEdit.setText(fn)
 
-    def getFilepath(self):
+    def getSaveFilepath(self):
         # get file name from line edit
         if self.lineEdit.text() != '':
             filepath = self.lineEdit.text()
             fn = os.path.basename(filepath)
             fn = fn.split('.shp')
             filename = fn[0]
-            return filepath, filename
+            return [filepath, filename]
         else:
             return None
 
+    def mainAlgorithm(self, guiUtil, fileType, in_filepath, in_filename, save_file_attr):
+        lg = LayerManager()
+        features = None
+
+        try:
+            # создаем вектор qgis
+            if fileType == 'delimitedtext':
+                uri = "file:///" + in_filepath + "?type=csv&delimiter=%5Ct&maxFields=10000&detectTypes=yes&xField=LON&yField=LAT&zField=ALT&crs=EPSG:28402&spatialIndex=no&subsetIndex=no&watchFile=no"
+                vlayer = QgsVectorLayer(uri, in_filename, fileType)
+            else:
+                # layerName = self.comboBox.currentText()
+                vlayer = lg.getLayer(in_filename)
+
+            # QgsProject.instance().addMapLayer(vlayer)
+            features = FeaturesList(vlayer.fields(), vlayer.getFeatures())
+
+            if self.checkBox.isChecked():
+                features.removeNullPoints()
+
+        except Exception as err:
+            guiUtil.setOutputStyle([-1, 'Файл не создан! ' + str(err)])
+
+        # # основной алгоритм
+        # try:
+        #     tool = ClassificationTool(GuiElemIFace(self.textEdit))
+        #     features = tool.mainAzimutCalc(features, self.checkBox_numProfiles.isChecked())
+        # except Exception as err:
+        #     guiUtil.setOutputStyle([-1, '\nНе удалось классифицировать точки! ' + str(err)])
+
+        try:
+            if self.checkBox_delete.isChecked():
+                features.removeSpoiledPoints()
+
+            # записываем объекты в новый слой
+            mess = lg.saveToFile("ESRI Shapefile", "UTF-8", save_file_attr, features)
+            guiUtil.setOutputStyle(mess)
+        except Exception as err:
+            guiUtil.setOutputStyle([-1, '\nНе удалось сохранить/загрузить файл! ' + str(err)])
 
     def doResult(self):
         self.textEdit.setText('')
         start = perf_counter()
         guiUtil = GuiElemIFace(self.textEdit)
-        lg = LayerManager()
-        file_attr = self.getFilepath()
-        layerName = self.comboBox.currentText()
-        features = None
 
-        if file_attr is None or layerName == '':
-            guiUtil.setOutputStyle([-1, 'Файл для сохранения не выбран! '])
-        else:
-            try:
-                # создаем вектор qgis
-                lg.getLayer(layerName)
-                vlayer = QgsVectorLayer(lg.layerpath, lg.layername, "ogr")
+        if self.radioButton_cb.isChecked():
+            save_file_attr = self.getSaveFilepath()
+            layerName = self.comboBox.currentText()
+            self.mainAlgorithm(guiUtil, 'ESRI Shapefile', None, layerName, save_file_attr)
 
-                features = FeaturesList(vlayer.fields(), vlayer.getFeatures())
-                if self.checkBox.isChecked():
-                    features.removeNullPoints()
+        # if save_file_attr is None or layerName == '':
+        #     guiUtil.setOutputStyle([-1, 'Файл для сохранения не выбран! '])
+        elif self.radioButton_folder.isChecked():
+            save_file_attr = self.getSaveFilepath()
+            inputDir = self.lineEdit_folder.text()
+            saveFolderPath = save_file_attr[0]
 
-            except Exception as err:
-                guiUtil.setOutputStyle([-1, 'Файл не создан! ' + str(err)])
+            # layerName = self.comboBox.currentText()
+            # lg = LayerManager()
+            # uri = lg.getLayer(layerName)
+            # guiUtil.setOutputStyle([0, str(uri)])
 
-            # основной алгоритм
-            try:
-                tool = ClassificationTool(GuiElemIFace(self.textEdit))
-                features = tool.mainAzimutCalc(features, self.checkBox_numProfiles.isChecked())
-            except Exception as err:
-                guiUtil.setOutputStyle([-1, '\nНе удалось классифицировать точки! ' + str(err)])
+            with os.scandir(inputDir) as dir:
+                for file in dir:
+                    in_filepath, in_file_extension = os.path.splitext(file)
+                    in_filepath = in_filepath + in_file_extension
+                    in_filename = file.name.split(in_file_extension)[0] + "_test1"
+                    # guiUtil.setOutputStyle([0, str(in_filepath)])
+                    # guiUtil.setOutputStyle([0, str(in_filename)])
 
-            try:
-                if self.checkBox_delete.isChecked():
-                    features.removeSpoiledPoints()
+                    save_file_attr[0] = saveFolderPath + '/' + in_filename + '.shp'
+                    save_file_attr[1] = in_filename
 
-                # записываем объекты в новый слой
-                mess = lg.saveToFile("ESRI Shapefile", "UTF-8", file_attr, features)
-                guiUtil.setOutputStyle(mess)
-            except Exception as err:
-                guiUtil.setOutputStyle([-1, '\nНе удалось сохранить/загрузить файл! ' + str(err)])
+                    self.mainAlgorithm(guiUtil, 'delimitedtext', in_filepath, in_filename, save_file_attr)
+
 
         end = perf_counter()
         guiUtil.setOutputStyle([0, '\nВремя работы плагина: ' + str(end - start)])
