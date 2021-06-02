@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>415</width>
-    <height>591</height>
+    <width>446</width>
+    <height>648</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -99,6 +99,16 @@
        </widget>
       </item>
       <item>
+       <widget class="QCheckBox" name="checkBox_class">
+        <property name="text">
+         <string>Классифицировать точки</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QCheckBox" name="checkBox_delete">
         <property name="text">
          <string>Удалить точки долетов/отлетов</string>
@@ -130,6 +140,27 @@
          <widget class="QToolButton" name="toolButton">
           <property name="text">
            <string>...</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_4">
+        <item>
+         <widget class="QRadioButton" name="radioButton_txt">
+          <property name="text">
+           <string>.txt</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="radioButton_shp">
+          <property name="text">
+           <string>.shp</string>
           </property>
          </widget>
         </item>

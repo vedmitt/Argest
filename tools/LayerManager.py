@@ -63,10 +63,10 @@ class LayerManager:
         if not layer:
             return -1, 'Не удалось загрузить слой в оболочку!'
         else:
-            return 1, '\nСлой успешно сохранен и загружен в QGIS!'
+            return 1, 'Слой успешно сохранен и загружен в QGIS!'
 
 
-    def saveToFile(self, driverName, fileEncoding, file_attr, features):
+    def saveToShapefile(self, driverName, fileEncoding, file_attr, features):
         newfields = QgsFields()
         fields = features.getFieldDict()
         for field in fields:
@@ -103,4 +103,26 @@ class LayerManager:
 
         mess = self.uploadLayer(file_attr[0], file_attr[1], 'ogr')
         return mess
+
+    def saveToTextFile(self, driverName, fileEncoding, file_attr, features):
+        with open(file_attr[0], 'w') as my_file:  # Change the path of the file
+            fields = features.getFieldList()
+            field_str = ''
+            for field in fields:
+                field_str = field_str + field + '\t'
+            my_file.write(field_str)
+
+            i = 0
+            feat_list = features.getFeaturesList()
+            for i in range(len(feat_list)):
+                turple_str = ''
+                values = features.getOrderedValList(i)
+                for val in values:
+                    turple_str = turple_str + str(val) + '\t'
+                my_file.write('\n' + turple_str)
+
+            my_file.close()  # close the file
+
+        # mess = self.uploadLayer(file_attr[0], file_attr[1], 'ogr')
+        return 1, 'Файл успешно сохранен!\n'
 

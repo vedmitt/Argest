@@ -22,7 +22,7 @@ class ClassificationTool:
         self.guiUtil = guiUtil
 
     def numerateProfiles(self, features):
-        self.guiUtil.setOutputStyle([0, '\nНачинаем нумерацию профилей... '])
+        self.guiUtil.setOutputStyle([0, 'Начинаем нумерацию профилей... '])
         i = 1
         features.sortListByLambda(self.fieldGlobalNum)
         isProfile = False
@@ -167,7 +167,7 @@ class ClassificationTool:
 
             # проходим по всем азимутам и сравниваем с целевым
             try:
-                self.guiUtil.setOutputStyle([0, '\nНачинаем классификацию точек...'])
+                self.guiUtil.setOutputStyle([0, 'Начинаем классификацию точек...'])
                 num_pass = 1
                 control_flights = self.azimuthLoop(features, num_pass)
 

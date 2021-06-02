@@ -1,3 +1,5 @@
+from PyQt5.QtCore import QDateTime, Qt
+
 class Feature:
 
     def __init__(self, fields_list, values, geom):
@@ -5,6 +7,8 @@ class Feature:
         self.geometry = geom
         i = 0
         for field in fields_list:
+            if str(type(values[i])) == "<class 'PyQt5.QtCore.QDateTime'>":
+                values[i] = values[i].currentDateTime().toString(Qt.ISODate)
             self.content.setdefault(field, values[i])
             i += 1
 

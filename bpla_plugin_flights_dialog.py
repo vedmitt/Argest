@@ -30,6 +30,7 @@ from PyQt5.QtGui import QIcon
 from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
 from PyQt5.QtGui import *
+from PyQt5.QtCore import QDateTime, Qt
 
 from time import perf_counter
 
@@ -76,16 +77,19 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         self.initActiveLayersComboBox()
         self.lineEdit_folder.setEnabled(False)
         self.toolButton_folder.setEnabled(False)
-        self.lineEdit.setText(r'/Users/ronya/My_Documents/output/test.shp')
+        self.checkBox_join_files.setChecked(False)
+        self.checkBox_join_files.setEnabled(False)
+        self.lineEdit.setText(r'/Users/ronya/My_Documents/output/test')
 
     def initInputFolderLine(self):
         # self.comboBox.clear()
         self.comboBox.setEnabled(False)
         self.toolButton_cbreload.setEnabled(False)
-        self.lineEdit_folder.setText(r'/Users/ronya/My_Documents/input_data/20210517_Magn_Data_All/Group_1')
-        self.lineEdit.setText(r'/Users/ronya/My_Documents/output/test_karelia')
+        self.lineEdit_folder.setText(r'/Users/ronya/My_Documents/karelia')
+        self.lineEdit.setText(r'/Users/ronya/My_Documents/karelia/karelia_results')
         self.lineEdit_folder.setEnabled(True)
         self.toolButton_folder.setEnabled(True)
+        self.checkBox_join_files.setEnabled(True)
 
     def initActiveLayersComboBox(self):
         self.comboBox.clear()
@@ -96,15 +100,21 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
 
     def getInputFolder(self):
         dlg = QtWidgets.QFileDialog(self)
-        fn = dlg.getExistingDirectory(self, r'/Users/ronya/My_Documents/input_data/20210517_Magn_Data_All/Group_1')
+        fn = dlg.getExistingDirectory(self, r'/Users/ronya/My_Documents')
         self.lineEdit_folder.setText(fn)
 
     def getSaveFileName(self):
         dlg = QtWidgets.QFileDialog(self)
         if self.radioButton_cb.isChecked() or self.checkBox_join_files.isChecked():
-            fn = dlg.getOpenFileName(self, 'Save file', r'/Users/ronya/My_Documents/output/test.shp', filter='*.shp')[0]
+            if self.radioButton_txt.isChecked():
+                filter = '*.txt'
+            elif self.radioButton_shp.isChecked():
+                filter = '*.shp'
+            else:
+                filter = ''
+            fn = dlg.getSaveFileName(self, 'Save file', r'/Users/ronya/My_Documents/karelia/karelia_results', filter=filter)[0]
         else:
-            fn = dlg.getExistingDirectory(self, r'/Users/ronya/My_Documents/output/test_karelia')
+            fn = dlg.getExistingDirectory(self, r'/Users/ronya/My_Documents/karelia/karelia_results')
         self.lineEdit.setText(fn)
 
     def getSaveFilepath(self):
@@ -112,8 +122,12 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         if self.lineEdit.text() != '':
             filepath = self.lineEdit.text()
             fn = os.path.basename(filepath)
-            fn = fn.split('.shp')
+            fn = fn.split('.')
             filename = fn[0]
+            # if self.radioButton_txt.isChecked():
+            #     filepath = filepath + self.radioButton_txt.text()
+            # elif self.radioButton_shp.isChecked():
+            #     filepath = filepath + self.radioButton_shp.text()
             return [filepath, filename]
         else:
             return None
@@ -127,12 +141,24 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             if fileType == 'delimitedtext':
                 uri = "file:///" + in_filepath + "?type=csv&delimiter=%5Ct&maxFields=10000&detectTypes=yes&xField=LON&yField=LAT&zField=ALT&crs=EPSG:28402&spatialIndex=no&subsetIndex=no&watchFile=no"
                 vlayer = QgsVectorLayer(uri, in_filename, fileType)
-            else:
+            elif fileType == 'ESRI Shapefile':
+                vlayer = QgsVectorLayer(in_filepath, in_filename, "ogr")
+            elif self.radioButton_cb.isChecked():
                 # layerName = self.comboBox.currentText()
                 vlayer = lg.getLayer(in_filename)
 
             # QgsProject.instance().addMapLayer(vlayer)
+            # for field in vlayer.fields():
+            #     guiUtil.setOutputStyle([0, str(field)])
+
             features = FeaturesList(vlayer.fields(), vlayer.getFeatures())
+            # for feat in features.getFeaturesList():
+            #     vals = feat.getAllValues()
+            #     for val in vals:
+            #         if str(type(val)) == "<class 'PyQt5.QtCore.QDateTime'>":
+            #             new = val.currentDateTime().toString(Qt.ISODate)
+            #             guiUtil.setOutputStyle([0, str(new)])
+            #     break
 
             if self.checkBox.isChecked():
                 features.removeNullPoints()
@@ -140,19 +166,23 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         except Exception as err:
             guiUtil.setOutputStyle([-1, 'Файл не создан! ' + str(err)])
 
-        # # основной алгоритм
-        # try:
-        #     tool = ClassificationTool(GuiElemIFace(self.textEdit))
-        #     features = tool.mainAzimutCalc(features, self.checkBox_numProfiles.isChecked())
-        # except Exception as err:
-        #     guiUtil.setOutputStyle([-1, '\nНе удалось классифицировать точки! ' + str(err)])
+        # основной алгоритм
+        try:
+            if self.checkBox_class.isChecked():
+                tool = ClassificationTool(GuiElemIFace(self.textEdit))
+                features = tool.mainAzimutCalc(features, self.checkBox_numProfiles.isChecked())
+        except Exception as err:
+            guiUtil.setOutputStyle([-1, '\nНе удалось классифицировать точки! ' + str(err)])
 
         try:
             if self.checkBox_delete.isChecked():
                 features.removeSpoiledPoints()
 
             # записываем объекты в новый слой
-            mess = lg.saveToFile("ESRI Shapefile", "UTF-8", save_file_attr, features)
+            if self.radioButton_shp.isChecked():
+                mess = lg.saveToShapefile("ESRI Shapefile", "UTF-8", save_file_attr, features)
+            elif self.radioButton_txt.isChecked():
+                mess = lg.saveToTextFile("delimitedtext", "UTF-8", save_file_attr, features)
             guiUtil.setOutputStyle(mess)
         except Exception as err:
             guiUtil.setOutputStyle([-1, '\nНе удалось сохранить/загрузить файл! ' + str(err)])
@@ -165,7 +195,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         if self.radioButton_cb.isChecked():
             save_file_attr = self.getSaveFilepath()
             layerName = self.comboBox.currentText()
-            self.mainAlgorithm(guiUtil, 'ESRI Shapefile', None, layerName, save_file_attr)
+            self.mainAlgorithm(guiUtil, '', None, layerName, save_file_attr)
 
         # if save_file_attr is None or layerName == '':
         #     guiUtil.setOutputStyle([-1, 'Файл для сохранения не выбран! '])
@@ -174,23 +204,26 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
             inputDir = self.lineEdit_folder.text()
             saveFolderPath = save_file_attr[0]
 
-            # layerName = self.comboBox.currentText()
-            # lg = LayerManager()
-            # uri = lg.getLayer(layerName)
-            # guiUtil.setOutputStyle([0, str(uri)])
+            extentions = {'.shp': 'ESRI Shapefile', '.txt': 'delimitedtext'}
 
             with os.scandir(inputDir) as dir:
                 for file in dir:
                     in_filepath, in_file_extension = os.path.splitext(file)
-                    in_filepath = in_filepath + in_file_extension
-                    in_filename = file.name.split(in_file_extension)[0] + "_test1"
-                    # guiUtil.setOutputStyle([0, str(in_filepath)])
-                    # guiUtil.setOutputStyle([0, str(in_filename)])
 
-                    save_file_attr[0] = saveFolderPath + '/' + in_filename + '.shp'
-                    save_file_attr[1] = in_filename
+                    if extentions.get(in_file_extension) is not None:
+                        in_filepath = in_filepath + in_file_extension
+                        in_filename = file.name.split(in_file_extension)[0] + "_test"
+                        # guiUtil.setOutputStyle([0, str(in_file_extension)])
+                        # guiUtil.setOutputStyle([0, str(in_filename)])
 
-                    self.mainAlgorithm(guiUtil, 'delimitedtext', in_filepath, in_filename, save_file_attr)
+                        if self.radioButton_txt.isChecked():
+                            save_file_attr[0] = saveFolderPath + '/' + in_filename + self.radioButton_txt.text()  #'.txt'
+                        elif self.radioButton_shp.isChecked():
+                            save_file_attr[0] = saveFolderPath + '/' + in_filename + self.radioButton_shp.text()  # '.shp'
+
+                        save_file_attr[1] = in_filename
+
+                        self.mainAlgorithm(guiUtil, extentions.get(in_file_extension), in_filepath, in_filename, save_file_attr)
 
 
         end = perf_counter()
