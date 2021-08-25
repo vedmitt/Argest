@@ -1,17 +1,38 @@
 from PyQt5.QtGui import QColor, QFont
-from qgis.utils import iface
+from PyQt5.QtWidgets import QAbstractItemView
 
-from .LayerManager import LayerManager
+from .dataStorage.FileManager import FileManager
 
 
 class GuiElemIFace:
-    def __init__(self, textEdit):
+
+    def __init__(self, textEdit=None):
         self.textEdit = textEdit
 
-    # def setComboBox(self, comboBox, dictLyr):
-    #     comboBox.clear()
-    #     comboBox.addItems(dictLyr.keys())
-    #     comboBox.show()
+    def setComboBox(self, comboBox, content):
+        comboBox.clear()
+        comboBox.addItems(content)
+        comboBox.show()
+
+    def setComboBoxWithLayers(self, comboBox, exclude_lyr=None):
+        lg = FileManager()
+        dictLyr = lg.getActiveLayersFromCanvas(exclude_lyr)
+        self.setComboBox(comboBox, dictLyr.keys())
+
+    def setListWidgetWithData(self, listWidget, entries, selectMode='multiselect'):
+        listWidget.clear()
+        for item in entries:
+            listWidget.addItem(item)
+
+        if selectMode is 'multiselect':
+            listWidget.setSelectionMode(QAbstractItemView.ExtendedSelection)  # Hold CTRL to select multiple
+
+    def getTextFromRadioButton(self, radioButtons):
+        text = ''
+        for rb in radioButtons:
+            if rb.isChecked():
+                text = rb.text()
+        return text
 
     def setOutputStyle(self, textStyle):
         colors = {

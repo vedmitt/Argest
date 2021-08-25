@@ -23,22 +23,20 @@
 """
 import os
 
-from PyQt5.QtCore import QVariant
-from qgis._core import *
-
 from PyQt5.QtGui import QIcon
-from qgis.PyQt import uic
+from qgis.PyQt import uic, QtGui
 from qgis.PyQt import QtWidgets
 from PyQt5.QtGui import *
-from PyQt5.QtCore import QDateTime, Qt
 
 from time import perf_counter
 
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
-from .tools.FeaturesList import FeaturesList
+from PyQt5.QtWidgets import QAbstractItemView
+
+from .tools.mathUtil.DataTimeUtil import DataTimeUtil
+from .tools.dataStorage.FeaturesList import FeaturesList
 from .tools.ClassificationTool import ClassificationTool
-from .tools.Feature import Feature
-from .tools.LayerManager import LayerManager
+from .tools.dataStorage.FileManager import FileManager
 from .tools.GuiElemIFace import GuiElemIFace
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
@@ -56,175 +54,197 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-        # self.initActiveLayersComboBox()
-        self.toolButton_cbreload.setIcon(QIcon(':/plugins/bpla_plugin_flights/icons/icon_reload.png'))
-        self.toolButton_cbreload.clicked.connect(self.initActiveLayersComboBox)
-        # self.checkBox.setChecked(False)
-        self.toolButton.clicked.connect(self.getSaveFileName)
-        self.toolButton_folder.clicked.connect(self.getInputFolder)
-        self.pushButton.clicked.connect(self.doResult)
-        # self.lineEdit.setText('')
-        # self.lineEdit_folder.setText('')
-        # self.lineEdit.setText(r'/Users/ronya/My_Documents/output/test.shp')
-        # self.lineEdit_folder.setText(r'/Users/ronya/My_Documents/output/test_karelia')
-        self.initInputFolderLine()
-        self.radioButton_cb.clicked.connect(self.initComboBox)
-        self.radioButton_folder.clicked.connect(self.initInputFolderLine)
 
-    def initComboBox(self):
-        self.comboBox.setEnabled(True)
-        self.toolButton_cbreload.setEnabled(True)
-        self.initActiveLayersComboBox()
-        self.lineEdit_folder.setEnabled(False)
-        self.toolButton_folder.setEnabled(False)
-        self.checkBox_join_files.setChecked(False)
-        self.checkBox_join_files.setEnabled(False)
-        self.lineEdit.setText(r'/Users/ronya/My_Documents/output/test')
+        # input from combobox
+        self.initComboBoxWithLayers()
+        self.tb_reload_1.setIcon(QIcon(':/plugins/bpla_plugin_flights/icons/icon_reload.png'))
+        self.tb_reload_1.clicked.connect(self.initComboBoxWithLayers)
 
-    def initInputFolderLine(self):
-        # self.comboBox.clear()
-        self.comboBox.setEnabled(False)
-        self.toolButton_cbreload.setEnabled(False)
-        self.lineEdit_folder.setText(r'/Users/ronya/My_Documents/karelia')
-        self.lineEdit.setText(r'/Users/ronya/My_Documents/karelia/karelia_results')
-        self.lineEdit_folder.setEnabled(True)
-        self.toolButton_folder.setEnabled(True)
-        self.checkBox_join_files.setEnabled(True)
+        # input from folder/file
+        self.tb_input_2.clicked.connect(self.setInputLineEditWithFilepath)
+        # self.le_input_2.setText(r'/Users/ronya/My_Documents')
+        self.gb_txtParams.setVisible(False)
+        self.txtParams = None
 
-    def initActiveLayersComboBox(self):
-        self.comboBox.clear()
-        lg = LayerManager()
-        dictLyr = lg.getActiveLayers()
-        self.comboBox.addItems(dictLyr.keys())
-        self.comboBox.show()
+        # set combobox with out_fields
+        self.tb_reload_2.setIcon(QIcon(':/plugins/bpla_plugin_flights/icons/icon_reload.png'))
+        self.tb_reload_2.clicked.connect(self.initComboBoxWithFields)
+        # self.initComboBoxWithFields()
+        # self.cb_lyr_1.currentIndexChanged.connect(self.initComboBoxWithFields)
 
-    def getInputFolder(self):
-        dlg = QtWidgets.QFileDialog(self)
-        fn = dlg.getExistingDirectory(self, r'/Users/ronya/My_Documents')
-        self.lineEdit_folder.setText(fn)
+        # set data out_fields by radioButtons
+        self.rb_simpleData.clicked.connect(self.hideParsedDataWidgets)
+        self.rb_absoluteData.clicked.connect(self.hideParsedDataWidgets)
+        self.hideParsedDataWidgets()
+        self.rb_parsedData.clicked.connect(self.loadDataForParsedTime)
 
-    def getSaveFileName(self):
-        dlg = QtWidgets.QFileDialog(self)
-        if self.radioButton_cb.isChecked() or self.checkBox_join_files.isChecked():
-            if self.radioButton_txt.isChecked():
-                filter = '*.txt'
-            elif self.radioButton_shp.isChecked():
-                filter = '*.shp'
-            else:
-                filter = ''
-            fn = dlg.getSaveFileName(self, 'Save file', r'/Users/ronya/My_Documents/karelia/karelia_results', filter=filter)[0]
+        # extension radioButtons
+        self.rb_extensions = [self.rb_txt, self.rb_shp]
+
+        # save output
+        self.tb_output.clicked.connect(self.setOutputLineEditWithFilepath)
+        self.le_output.setText(r'/Users/ronya/My_Documents/Darhan/controls/DarhanMagnClearGK20_test1.shp')
+        # self.le_output.setText(r'/Users/ronya/My_Documents/Darhan/test/test_2.shp')
+        self.chb_join.setVisible(False)
+        self.tabWidget.adjustSize()
+
+        self.pushButton_run.clicked.connect(self.doResult)
+
+    def initComboBoxWithLayers(self):  # input combobox
+        GuiElemIFace().setComboBoxWithLayers(self.cb_lyr_1)
+
+    def initComboBoxWithFields(self):
+        lg = FileManager()
+        guiUtil = GuiElemIFace()
+
+        if self.tabWidget.currentIndex() == 0:
+            textFromCB = self.cb_lyr_1.currentText()
+            if textFromCB != '':
+                vlayer = lg.getQgsVectorLayer(textFromCB)
+                guiUtil.setComboBox(self.cb_fields, list(vlayer.fields().names()))
         else:
-            fn = dlg.getExistingDirectory(self, r'/Users/ronya/My_Documents/karelia/karelia_results')
-        self.lineEdit.setText(fn)
+            inputDir = self.le_input_2.text()
+            file = lg.getFirstFileAttrFromDir(inputDir)
 
-    def getSaveFilepath(self):
-        # get file name from line edit
-        if self.lineEdit.text() != '':
-            filepath = self.lineEdit.text()
-            fn = os.path.basename(filepath)
-            fn = fn.split('.')
-            filename = fn[0]
-            # if self.radioButton_txt.isChecked():
-            #     filepath = filepath + self.radioButton_txt.text()
-            # elif self.radioButton_shp.isChecked():
-            #     filepath = filepath + self.radioButton_shp.text()
-            return [filepath, filename]
+            if file.getFileExtension() == '.txt':
+                fields = lg.getFieldsFromTXT(file.getFilePath())
+                guiUtil.setComboBox(self.cb_fields, fields)
+
+            elif file.getFileExtension() == '.shp':
+                vlayer = lg.getQgsVectorLayer(file)
+                guiUtil.setComboBox(self.cb_fields, list(vlayer.fields().names()))
+
+    def setInputLineEditWithFilepath(self):  # input folder
+        self.le_input_2.setText(QtWidgets.QFileDialog(self).getExistingDirectory(self, r'/Users/ronya/My_Documents'))
+        # если первый файл в папке - текст, то покажем дополнительные параметры
+        self.gb_txtParams.setVisible(False)
+        inputDir = self.le_input_2.text()
+        file = FileManager().getFirstFileAttrFromDir(inputDir)
+
+        if file is not None and file.getFileExtension() == '.txt':
+            self.gb_txtParams.setVisible(True)
+            self.initTXTParams(file)
+
+    def initTXTParams(self, file):
+        guiUtil = GuiElemIFace(self.textEdit)
+        fields = FileManager().getFieldsFromTXT(file.getFilePath())
+
+        guiUtil.setComboBox(self.tp_delimiter, ['Tab'])
+        guiUtil.setComboBox(self.tp_xfield, fields)
+        guiUtil.setComboBox(self.tp_yfield, fields)
+
+    def hideParsedDataWidgets(self):
+        self.label_6.setVisible(False)
+        self.listWidget.setVisible(False)
+
+    def loadDataForParsedTime(self):
+        self.cb_fields.clear()
+        self.label_6.setVisible(True)
+        self.listWidget.setVisible(True)
+        lg = FileManager()
+        guiUtil = GuiElemIFace()
+        textFromCB = self.cb_lyr_1.currentText()
+
+        if self.tabWidget.currentIndex() == 0:
+            if textFromCB != '':
+                vlayer = lg.getQgsVectorLayer(textFromCB)
+                entries = list(vlayer.fields().names())
+                guiUtil.setListWidgetWithData(self.listWidget, entries, 'multiselect')
         else:
-            return None
+            inputDir = self.le_input_2.text()
+            file = lg.getFirstFileAttrFromDir(inputDir)
 
-    def mainAlgorithm(self, guiUtil, fileType, in_filepath, in_filename, save_file_attr):
-        lg = LayerManager()
-        features = None
+            if file.getFileExtension() == '.txt':
+                entries = lg.getFieldsFromTXT(file.getFilePath())
+                guiUtil.setListWidgetWithData(self.listWidget, entries, 'multiselect')
 
-        try:
-            # создаем вектор qgis
-            if fileType == 'delimitedtext':
-                uri = "file:///" + in_filepath + "?type=csv&delimiter=%5Ct&maxFields=10000&detectTypes=yes&xField=LON&yField=LAT&zField=ALT&crs=EPSG:28402&spatialIndex=no&subsetIndex=no&watchFile=no"
-                vlayer = QgsVectorLayer(uri, in_filename, fileType)
-            elif fileType == 'ESRI Shapefile':
-                vlayer = QgsVectorLayer(in_filepath, in_filename, "ogr")
-            elif self.radioButton_cb.isChecked():
-                # layerName = self.comboBox.currentText()
-                vlayer = lg.getLayer(in_filename)
+            elif file.getFileExtension() == '.shp':
+                vlayer = lg.getQgsVectorLayer(file)
+                entries = list(vlayer.fields().names())
+                guiUtil.setListWidgetWithData(self.listWidget, entries, 'multiselect')
 
-            # QgsProject.instance().addMapLayer(vlayer)
-            # for field in vlayer.fields():
-            #     guiUtil.setOutputStyle([0, str(field)])
+    def setOutputLineEditWithFilepath(self):  # output folder/file
+        dlg = QtWidgets.QFileDialog(self)
 
-            features = FeaturesList(vlayer.fields(), vlayer.getFeatures())
-            # for feat in features.getFeaturesList():
-            #     vals = feat.getAllValues()
-            #     for val in vals:
-            #         if str(type(val)) == "<class 'PyQt5.QtCore.QDateTime'>":
-            #             new = val.currentDateTime().toString(Qt.ISODate)
-            #             guiUtil.setOutputStyle([0, str(new)])
-            #     break
+        if self.chb_join.isChecked() or self.tabWidget.currentIndex() == 0:
+            filter = '*' + GuiElemIFace().getTextFromRadioButton(self.rb_extensions)
+            fn = dlg.getSaveFileName(self, 'Save file', r'/Users/ronya/My_Documents', filter=filter)[0]
+        else:
+            fn = dlg.getExistingDirectory(self, r'/Users/ronya/My_Documents')
 
-            if self.checkBox.isChecked():
-                features.removeNullPoints()
+        self.le_output.setText(fn)
 
-        except Exception as err:
-            guiUtil.setOutputStyle([-1, 'Файл не создан! ' + str(err)])
+    def mainAlgorithm(self, file_attr):
+        """
+            Функция удаления точек для каждого выбранного пользователем слоя,
+                которая может выполняться несколько раз в теле цикла.
+        """
+        guiUtil = GuiElemIFace(self.textEdit)
+        lg = FileManager(guiUtil)
+
+        # создаем вектор qgis
+        vlayer = lg.getQgsVectorLayer(file_attr[0], self.txtParams)
+        features = FeaturesList(vlayer.fields().names(), [f.type() for f in vlayer.fields()], vlayer.getFeatures())
+        field_data = self.cb_fields.currentText()
+
+        if self.chb_delNulPnt.isChecked():  # удаляем нулевые точки, если поставлена галочка
+            features.removeNullPoints()
+
+        # если дата раздроблена, то собираем ее в одну строку и записываем в столбец TIME_REBUILT
+        if self.rb_parsedData.isChecked():
+            in_fields = self.listWidget.selectedItems()
+            field_names = [i.text() for i in list(in_fields)]  # ['day', 'month', 'year', 'hour', 'minute', 'fn2']
+            features = DataTimeUtil().joinDataFromDust(features, field_names)
+            field_data = 'TIME'
 
         # основной алгоритм
-        try:
-            if self.checkBox_class.isChecked():
-                tool = ClassificationTool(GuiElemIFace(self.textEdit))
-                features = tool.mainAzimutCalc(features, self.checkBox_numProfiles.isChecked())
-        except Exception as err:
-            guiUtil.setOutputStyle([-1, '\nНе удалось классифицировать точки! ' + str(err)])
+        features = ClassificationTool(self.sb_accuracy.value(), self.sb_bufSize.value(), field_data,
+                                      self.chb_num.isChecked(), self.rb_absoluteData.isChecked(),
+                                      guiUtil).mainAzimutCalc(features)
 
-        try:
-            if self.checkBox_delete.isChecked():
-                features.removeSpoiledPoints()
+        if self.chb_delSpldPnt.isChecked():  # удаляем забракованные точки, если поставлена галочка
+            features.removeSpoiledPoints()
 
-            # записываем объекты в новый слой
-            if self.radioButton_shp.isChecked():
-                mess = lg.saveToShapefile("ESRI Shapefile", "UTF-8", save_file_attr, features)
-            elif self.radioButton_txt.isChecked():
-                mess = lg.saveToTextFile("delimitedtext", "UTF-8", save_file_attr, features)
-            guiUtil.setOutputStyle(mess)
-        except Exception as err:
-            guiUtil.setOutputStyle([-1, '\nНе удалось сохранить/загрузить файл! ' + str(err)])
+        # записываем объекты в новый слой
+        whatType = {'txt': self.rb_txt.isChecked(),
+                    'shp': self.rb_shp.isChecked()
+                    }
+        mess = lg.createNewFileByExtension(whatType, features, file_attr[1].getFilePath())
+        guiUtil.setOutputStyle(mess)
 
     def doResult(self):
-        self.textEdit.setText('')
+        """Функция модуля удаления точек, которая выполняется первой при нажатии кнопки запуска плагина."""
         start = perf_counter()
+        self.textEdit.setText('')
+
+        lg = FileManager()
         guiUtil = GuiElemIFace(self.textEdit)
 
-        if self.radioButton_cb.isChecked():
-            save_file_attr = self.getSaveFilepath()
-            layerName = self.comboBox.currentText()
-            self.mainAlgorithm(guiUtil, '', None, layerName, save_file_attr)
+        # если выбран слой из комбобокса
+        if self.tabWidget.currentIndex() == 0:
+            save_file_attr = lg.getSaveFileAttr(self.le_output)
+            layerName = self.cb_lyr_1.currentText()
 
-        # if save_file_attr is None or layerName == '':
-        #     guiUtil.setOutputStyle([-1, 'Файл для сохранения не выбран! '])
-        elif self.radioButton_folder.isChecked():
-            save_file_attr = self.getSaveFilepath()
-            inputDir = self.lineEdit_folder.text()
-            saveFolderPath = save_file_attr[0]
+            self.mainAlgorithm([layerName, save_file_attr])
 
-            extentions = {'.shp': 'ESRI Shapefile', '.txt': 'delimitedtext'}
+        # если выбрана папка с множеством исходных файлов
+        else:
+            save_file_attr = lg.getSaveFileAttr(self.le_output, True)
+            inputDir = self.le_input_2.text()
+            saveFolderPath = save_file_attr.getDirPath()
+            save_ext = guiUtil.getTextFromRadioButton(self.rb_extensions)
+            file_attr = lg.getFilesAttrFromDir(inputDir, saveFolderPath, save_ext)
 
-            with os.scandir(inputDir) as dir:
-                for file in dir:
-                    in_filepath, in_file_extension = os.path.splitext(file)
+            # get txt params
+            if self.gb_txtParams.isVisible():
+                self.txtParams = {'delimiter': self.tp_delimiter.currentText(),
+                                  'xfield': self.tp_xfield.currentText(),
+                                  'yfield': self.tp_yfield.currentText(),
+                                  'crs': self.tp_crs.text()
+                                  }
 
-                    if extentions.get(in_file_extension) is not None:
-                        in_filepath = in_filepath + in_file_extension
-                        in_filename = file.name.split(in_file_extension)[0] + "_test"
-                        # guiUtil.setOutputStyle([0, str(in_file_extension)])
-                        # guiUtil.setOutputStyle([0, str(in_filename)])
-
-                        if self.radioButton_txt.isChecked():
-                            save_file_attr[0] = saveFolderPath + '/' + in_filename + self.radioButton_txt.text()  #'.txt'
-                        elif self.radioButton_shp.isChecked():
-                            save_file_attr[0] = saveFolderPath + '/' + in_filename + self.radioButton_shp.text()  # '.shp'
-
-                        save_file_attr[1] = in_filename
-
-                        self.mainAlgorithm(guiUtil, extentions.get(in_file_extension), in_filepath, in_filename, save_file_attr)
-
+            for file in file_attr:
+                self.mainAlgorithm(file)
 
         end = perf_counter()
         guiUtil.setOutputStyle([0, '\nВремя работы плагина: ' + str(end - start)])
