@@ -6,8 +6,6 @@ from openpyxl.chart import (
     Reference,
     Series,
 )
-from pandas.tests.io.excel.test_openpyxl import openpyxl
-
 
 class ExcelFileManager:
     def __init__(self, fpath, isOverride):

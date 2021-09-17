@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>985</width>
-    <height>1027</height>
+    <width>1011</width>
+    <height>832</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -63,7 +63,7 @@
                   </property>
                   <property name="icon">
                    <iconset>
-                    <normaloff>icon_reload.png</normaloff>icon_reload.png</iconset>
+                    <normaloff>../../../../../../../../../.designer/backup/icon_reload.png</normaloff>../../../../../../../../../.designer/backup/icon_reload.png</iconset>
                   </property>
                  </widget>
                 </item>
@@ -359,16 +359,6 @@
               </property>
              </widget>
             </item>
-            <item>
-             <widget class="QCheckBox" name="chb_num">
-              <property name="text">
-               <string>Пронумеровать профиля</string>
-              </property>
-              <property name="checked">
-               <bool>true</bool>
-              </property>
-             </widget>
-            </item>
            </layout>
           </item>
          </layout>
@@ -428,7 +418,7 @@
               </property>
               <property name="icon">
                <iconset>
-                <normaloff>icon_reload.png</normaloff>icon_reload.png</iconset>
+                <normaloff>../../../../../../../../../.designer/backup/icon_reload.png</normaloff>../../../../../../../../../.designer/backup/icon_reload.png</iconset>
               </property>
              </widget>
             </item>

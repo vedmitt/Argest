@@ -19,8 +19,8 @@ class ControlsExtractTool:
                        'Dissolved',
                        'intersection',
                        'Joins',
-                       'Controls',
                        'Control_pairs_1',
+                       'Controls_scheme',
                        'Control_pairs'
                        ]
         self.outDir = outDir
@@ -28,9 +28,9 @@ class ControlsExtractTool:
         self.dissoveFn = os.path.join(outDir, self.fnames[1] + '.shp')
         self.intersectFn = os.path.join(outDir, self.fnames[2] + '.shp')
         self.joinFn = os.path.join(outDir, self.fnames[3] + '.shp')
-        self.controlFn = os.path.join(outDir, self.fnames[4] + '.shp')
-        self.resultFn1 = os.path.join(outDir, self.fnames[5] + '.shp')
-        self.resultFn = os.path.join(outDir, self.fnames[6] + '.shp')
+        self.controlPoints1 = os.path.join(outDir, self.fnames[4] + '.shp')
+        self.controlScheme = os.path.join(outDir, self.fnames[5] + '.shp')
+        self.controlPairs = os.path.join(outDir, self.fnames[6] + '.shp')
 
     def makeBuffer(self):
         FileManager().makeBufferOperation(self.layer, self.bufferFn)
@@ -109,31 +109,31 @@ class ControlsExtractTool:
         joinLyr = QgsVectorLayer(self.joinFn, 'Joins', 'ogr')
         expression = "if ( area_diff > 0.5, if ( time1 > time2, flight1, flight2), '')"
         fields, feats = lg.selectByExpression(joinLyr, expression)
-        lg.createLayerByWriter(fields, feats, joinLyr.sourceCrs(), self.controlFn)
-        lg.createFieldByExpression(self.controlFn, 'FLIGHT_NUM', QVariant.Int, expression)
-        iface.addVectorLayer(self.controlFn, '', 'ogr')
+        lg.createLayerByWriter(fields, feats, joinLyr.sourceCrs(), self.controlScheme)
+        lg.createFieldByExpression(self.controlScheme, 'FLIGHT_NUM', QVariant.Int, expression)
+        iface.addVectorLayer(self.controlScheme, '', 'ogr')
 
     def makeControlPairs(self):
         lg = FileManager()
         layer_1 = self.layer
-        layer_2 = QgsVectorLayer(self.controlFn, 'Controls', 'ogr')
+        layer_2 = QgsVectorLayer(self.controlScheme, 'Controls', 'ogr')
 
         # сделаем intersection и выделим пары рядовых и контрольных профилей
         lyr = QgsVectorLayer(self.dissoveFn, 'Dissolved', 'ogr')
         in_fields = lyr.fields().names()
         in_fields.remove('area')
 
-        lg.intersectionOperation(layer_1, layer_2, self.resultFn1, in_fields, ['FLIGHT_NUM'])
+        lg.intersectionOperation(layer_1, layer_2, self.controlPoints1, in_fields, ['FLIGHT_NUM'])
 
         # Приведем тип Multipoint в Point
-        lg.multipartToSingleparts(self.resultFn1, self.resultFn)
+        lg.multipartToSingleparts(self.controlPoints1, self.controlPairs)
 
-        iface.addVectorLayer(self.resultFn, '', 'ogr')
+        iface.addVectorLayer(self.controlPairs, '', 'ogr')
         self.guiUtil.setOutputStyle([1, '\nКонтрольные профиля успешно найдены!'])
 
     def makeParseControlPairs(self):
         lg = FileManager()
-        resLyr = QgsVectorLayer(self.resultFn, 'Control_pairs', 'ogr')
+        resLyr = QgsVectorLayer(self.controlPairs, 'Control_pairs', 'ogr')
         controlField = "FLIGHT_N_1"
         fields, feats = lg.selectByExpression(resLyr, controlField)
 
@@ -178,7 +178,7 @@ class ControlsExtractTool:
     def deleteFilesFromLegend(self):
         lg = FileManager()
         i = 0
-        while i < len(self.fnames) - 1:
+        while i < len(self.fnames)-2:
             lg.removeLyrFromLegend(self.fnames[i])
             lg.removeShapeFile(self.outDir, self.fnames[i])
             i += 1

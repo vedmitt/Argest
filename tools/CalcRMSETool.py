@@ -9,11 +9,8 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.chart import (
     ScatterChart,
     Reference,
-    Series, LineChart,
+    Series
 )
-from openpyxl.chart.axis import DateAxis
-from openpyxl.utils import get_column_letter
-from pandas.tests.io.excel.test_openpyxl import openpyxl
 from qgis._core import QgsProject, QgsVectorLayer, QgsWkbTypes, QgsFeatureRequest, QgsField
 
 from .dataStorage.FeaturesList import FeaturesList
@@ -32,7 +29,7 @@ class CalcRMSETool:
 
         # create input layer and extract all features from it to the FeaturesList
         # vlayer = lg.getVlayerFromCanvasByName(self.comboBox_input_2.currentText())
-        # entries = self.rm_lw_input.selectedItems()
+        # content = self.rm_lw_input.selectedItems()
         lyrNames = [i.text() for i in list(entries)]
         vlayer = lg.getVlayerFromCanvasByName(lyrNames[0])
         features = FeaturesList(vlayer.fields().names(), [f.type() for f in vlayer.fields()], vlayer.getFeatures())
@@ -144,7 +141,7 @@ class CalcRMSETool:
 
         # outDir = self.rm_output.text()
         # # layerName = self.rm_input_1.currentText()
-        # entries = self.rm_lw_input.selectedItems()
+        # content = self.rm_lw_input.selectedItems()
         lyrNames = [i.text() for i in list(entries)]
         if len(lyrNames) > 0:
             sumOfControlsLength = 0

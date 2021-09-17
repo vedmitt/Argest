@@ -162,7 +162,7 @@ class bpla_plugin_flights:
         return action
 
     def initGui(self):
-        """Create the menu entries and toolbar icons inside the QGIS GUI."""
+        """Create the menu content and toolbar icons inside the QGIS GUI."""
 
         icon_path = ':/plugins/bpla_plugin_flights/icons/icon_3.png'
         self.add_action(

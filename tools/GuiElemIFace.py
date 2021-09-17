@@ -1,5 +1,7 @@
 from PyQt5.QtGui import QColor, QFont
-from PyQt5.QtWidgets import QAbstractItemView
+from PyQt5.QtWidgets import (QApplication, QCheckBox, QGridLayout, QGroupBox,
+                             QMenu, QPushButton, QRadioButton, QVBoxLayout, QWidget, QHBoxLayout, QLabel, QLineEdit,
+                             QSpacerItem, QSizePolicy, QComboBox, QAbstractItemView)
 
 from .dataStorage.FileManager import FileManager
 
@@ -8,6 +10,39 @@ class GuiElemIFace:
 
     def __init__(self, textEdit=None):
         self.textEdit = textEdit
+
+    def createLabelField(self, labelText, fieldType, content):
+        hbox = QHBoxLayout()
+        label = QLabel(labelText)
+        spaceItem = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
+
+        if fieldType == 'QComboBox':
+            field = QComboBox()
+            field.addItems(content)
+        else:
+            field = QLineEdit(content[0])
+
+        hbox.addWidget(label)
+        hbox.addItem(spaceItem)
+        hbox.addWidget(field)
+        # hbox.addStretch(1)
+
+        return hbox, field
+
+    def createGroupBox(self, gb_title, content):
+        groupBox = QGroupBox(gb_title)
+        vbox = QVBoxLayout()
+
+        fields = []
+        for line in content:
+            labelField, field = self.createLabelField(line[0], line[1], line[2])
+            fields.append(field)
+            vbox.addLayout(labelField)
+
+        # vbox.minimumSize()
+        groupBox.setLayout(vbox)
+
+        return groupBox, fields
 
     def setComboBox(self, comboBox, content):
         comboBox.clear()

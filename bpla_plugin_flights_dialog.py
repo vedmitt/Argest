@@ -55,45 +55,49 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
 
+        self.initForm()
+        self.tabWidget.setCurrentIndex(0)
+        self.tabWidget.currentChanged.connect(self.initForm)
+
         # input from combobox
-        self.initComboBoxWithLayers()
         self.tb_reload_1.setIcon(QIcon(':/plugins/bpla_plugin_flights/icons/icon_reload.png'))
-        self.tb_reload_1.clicked.connect(self.initComboBoxWithLayers)
+        self.tb_reload_1.clicked.connect(self.initForm)
 
         # input from folder/file
         self.tb_input_2.clicked.connect(self.setInputLineEditWithFilepath)
         # self.le_input_2.setText(r'/Users/ronya/My_Documents')
-        self.gb_txtParams.setVisible(False)
-        self.txtParams = None
 
         # set combobox with out_fields
         self.tb_reload_2.setIcon(QIcon(':/plugins/bpla_plugin_flights/icons/icon_reload.png'))
-        self.tb_reload_2.clicked.connect(self.initComboBoxWithFields)
+        self.tb_reload_2.clicked.connect(self.setComboBoxWithFields)
         # self.initComboBoxWithFields()
         # self.cb_lyr_1.currentIndexChanged.connect(self.initComboBoxWithFields)
 
         # set data out_fields by radioButtons
         self.rb_simpleData.clicked.connect(self.hideParsedDataWidgets)
         self.rb_absoluteData.clicked.connect(self.hideParsedDataWidgets)
-        self.hideParsedDataWidgets()
         self.rb_parsedData.clicked.connect(self.loadDataForParsedTime)
 
         # extension radioButtons
+        self.txtParams = None
         self.rb_extensions = [self.rb_txt, self.rb_shp]
 
         # save output
         self.tb_output.clicked.connect(self.setOutputLineEditWithFilepath)
-        self.le_output.setText(r'/Users/ronya/My_Documents/Darhan/controls/DarhanMagnClearGK20_test1.shp')
+        # self.le_output.setText(r'/Users/ronya/My_Documents/output/test1.shp')
         # self.le_output.setText(r'/Users/ronya/My_Documents/Darhan/test/test_2.shp')
-        self.chb_join.setVisible(False)
-        self.tabWidget.adjustSize()
 
         self.pushButton_run.clicked.connect(self.doResult)
 
-    def initComboBoxWithLayers(self):  # input combobox
+    def initForm(self):  # input combobox
+        self.resize(800, 300)
+        # self.adjustSize()
+        self.chb_join.setVisible(False)
+        self.gb_txtParams.setVisible(False)
+        self.hideParsedDataWidgets()
         GuiElemIFace().setComboBoxWithLayers(self.cb_lyr_1)
 
-    def initComboBoxWithFields(self):
+    def setComboBoxWithFields(self):
         lg = FileManager()
         guiUtil = GuiElemIFace()
 
@@ -199,7 +203,7 @@ class bpla_plugin_flightsDialog(QtWidgets.QDialog, FORM_CLASS):
 
         # основной алгоритм
         features = ClassificationTool(self.sb_accuracy.value(), self.sb_bufSize.value(), field_data,
-                                      self.chb_num.isChecked(), self.rb_absoluteData.isChecked(),
+                                      True, self.rb_absoluteData.isChecked(),
                                       guiUtil).mainAzimutCalc(features)
 
         if self.chb_delSpldPnt.isChecked():  # удаляем забракованные точки, если поставлена галочка

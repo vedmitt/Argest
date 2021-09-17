@@ -23,51 +23,51 @@ class ClassificationTool:
         self.guiUtil = guiUtil
 
     def numerateProfiles(self, features):
-        # self.guiUtil.setOutputStyle([0, '\nНачинаем нумерацию профилей... '])
-        # i = 1
-        # features.sortByField(self.fieldGlobalNum)
-        # isProfile = False
-        # profileNum = 1
-        #
-        # while i < features.featureCount():
-        #     if features.getFeatureValue(i, self.fieldClass) == 4 or features.getFeatureValue(i, self.fieldClass) == 3:
-        #         isProfile = True
-        #         features.setFeature(i, self.fieldNum, profileNum)
-        #     else:
-        #         if isProfile:
-        #             profileNum += 1
-        #         isProfile = False
-        #     i += 1
-        #
-        # self.guiUtil.setOutputStyle([1, 'Профиля успешно пронумерованы!'])
-        # return features
-
         self.guiUtil.setOutputStyle([0, '\nНачинаем нумерацию профилей... '])
-        # features.addNewField('AZ_DIFF', 'Real')
-        prev = 0
         i = 1
-        # features.sortByField('DEV')
+        features.sortByField(self.fieldGlobalNum)
+        isProfile = False
         profileNum = 1
-        features.setFeature(prev, self.fieldNum, profileNum)
 
-        while i < features.featureCount()-1:
-            az = AzimutMathUtil()
-            prev_az = az.getAzimuth(features.getFeature(prev), features.getFeature(i))
-            cur_az = az.getAzimuth(features.getFeature(i), features.getFeature(i+1))
-            diff = math.fabs(cur_az - prev_az)
-            # features.setFeature(i, 'AZ_DIFF', diff)
-            # self.guiUtil.setOutputStyle([0, str(diff)])
-            if diff < 90:
+        while i < features.featureCount():
+            if features.getFeatureValue(i, self.fieldClass) == 4 or features.getFeatureValue(i, self.fieldClass) == 3:
+                isProfile = True
                 features.setFeature(i, self.fieldNum, profileNum)
             else:
-                profileNum += 1
-                features.setFeature(i, self.fieldNum, profileNum)
-            prev = i
+                if isProfile:
+                    profileNum += 1
+                isProfile = False
             i += 1
 
-        features.setFeature(i, self.fieldNum, profileNum)
         self.guiUtil.setOutputStyle([1, 'Профиля успешно пронумерованы!'])
         return features
+
+        # self.guiUtil.setOutputStyle([0, '\nНачинаем нумерацию профилей... '])
+        # # features.addNewField('AZ_DIFF', 'Real')
+        # prev = 0
+        # i = 1
+        # # features.sortByField('DEV')
+        # profileNum = 1
+        # features.setFeature(prev, self.fieldNum, profileNum)
+        #
+        # while i < features.featureCount()-1:
+        #     az = AzimutMathUtil()
+        #     prev_az = az.getAzimuth(features.getFeature(prev), features.getFeature(i))
+        #     cur_az = az.getAzimuth(features.getFeature(i), features.getFeature(i+1))
+        #     diff = math.fabs(cur_az - prev_az)
+        #     # features.setFeature(i, 'AZ_DIFF', diff)
+        #     # self.guiUtil.setOutputStyle([0, str(diff)])
+        #     if diff < 90:
+        #         features.setFeature(i, self.fieldNum, profileNum)
+        #     else:
+        #         profileNum += 1
+        #         features.setFeature(i, self.fieldNum, profileNum)
+        #     prev = i
+        #     i += 1
+        #
+        # features.setFeature(i, self.fieldNum, profileNum)
+        # self.guiUtil.setOutputStyle([1, 'Профиля успешно пронумерованы!'])
+        # return features
 
     def classify(self, azimuth, speed):
         if math.fabs(self.targetAzimuth - azimuth) <= self.accuracy:
@@ -153,31 +153,31 @@ class ClassificationTool:
 
     def mainAzimutCalc(self, features):
         # создаем новые столбцы, если они еще не созданы
-        # if self.fieldGlobalNum and self.fieldClass not in features.getFields():
-        #     features.addNewField(self.fieldGlobalNum, 'Integer64')
-        #     features.addNewField(self.fieldClass, 'Integer64')
+        if self.fieldGlobalNum and self.fieldClass not in features.getFields():
+            features.addNewField(self.fieldGlobalNum, 'Integer64')
+            features.addNewField(self.fieldClass, 'Integer64')
 
         # отсортируем список по времени
-        # features.sortByField(self.timeField)
+        features.sortByField(self.timeField)
 
-        # # вычислим целевой азимут
-        # # self.targetAzimuth = 110
-        # self.targetAzimuth = AzimutMathUtil().calcTargetAzimuth(features)
-        # self.guiUtil.setOutputStyle([0, 'Целевой азимут: ' + str(self.targetAzimuth)])
+        # вычислим целевой азимут
+        # self.targetAzimuth = 110
+        self.targetAzimuth = AzimutMathUtil().calcTargetAzimuth(features)
+        self.guiUtil.setOutputStyle([0, 'Целевой азимут: ' + str(self.targetAzimuth)])
 
-        # # проходим по всем азимутам и сравниваем с целевым
-        # self.guiUtil.setOutputStyle([0, '\nНачинаем классификацию точек...'])
-        # num_pass = 1
-        # control_flights = self.classifyPoints(features, num_pass)
+        # проходим по всем азимутам и сравниваем с целевым
+        self.guiUtil.setOutputStyle([0, '\nНачинаем классификацию точек...'])
+        num_pass = 1
+        control_flights = self.classifyPoints(features, num_pass)
 
         # повторяем процедуру для полетов, совершенных одновременно
-        # while control_flights.featureCount() > 0:
-        #     num_pass += 1
-        #     control_flights = self.classifyPoints(control_flights, num_pass)
-        #     if num_pass > 100:
-        #         self.guiUtil.setOutputStyle([-1, '\nЗациклился!'])
-        #         break
-        # self.guiUtil.setOutputStyle([1, 'Точки успешно классифицированы!'])
+        while control_flights.featureCount() > 0:
+            num_pass += 1
+            control_flights = self.classifyPoints(control_flights, num_pass)
+            if num_pass > 100:
+                self.guiUtil.setOutputStyle([-1, '\nЗациклился!'])
+                break
+        self.guiUtil.setOutputStyle([1, 'Точки успешно классифицированы!'])
 
         # if self.shouldBeNumerated:
         # if self.fieldGlobalNum and self.fieldClass in features.getFields() \
