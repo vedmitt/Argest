@@ -22,6 +22,7 @@ from qgis.core import (QgsProcessing,
                        QgsFields,
                        QgsWkbTypes)
 
+
 def loadMinimag(source, feedback, context, output, fields):
     def scanHeader(file):
         date = None
@@ -62,7 +63,8 @@ def loadMinimag(source, feedback, context, output, fields):
                 ft['FIELD'] = dt
                 output.addFeature(ft)
                 if first:
-                    feedback.setProgressText(f'Время первого отсчёта: {datetime.datetime(date.year, date.month, date.day, hrs, min, sec)}')
+                    feedback.setProgressText(
+                        f'Время первого отсчёта: {datetime.datetime(date.year, date.month, date.day, hrs, min, sec)}')
                     first = False
             else:
                 return
@@ -77,6 +79,7 @@ def loadMinimag(source, feedback, context, output, fields):
             else:
                 return
 
+
 def loadPos(source, feedback, context, output, fields):
     def scanHeader(file):
         s = file.readline()
@@ -85,9 +88,12 @@ def loadPos(source, feedback, context, output, fields):
                 feedback.setProgressText(f'String is: {s}')
                 t = s.split(' ')
                 try:
-                    if len(t[3].split('-')) > 1: return s, '-'
-                    elif len(t[3].split('.')) > 1: return s, '.'
-                    else: return None
+                    if len(t[3].split('-')) > 1:
+                        return s, '-'
+                    elif len(t[3].split('.')) > 1:
+                        return s, '.'
+                    else:
+                        return None
                 except:
                     return None
             s = file.readline()
@@ -114,26 +120,28 @@ def loadPos(source, feedback, context, output, fields):
             ft['YEAR'] = int(d[2]) + 2000
             ft['HOUR'] = int(t[0])
             ft['MINUTE'] = int(t[1])
-            ft['SECOND'] = round(float(t[2].replace(',','.')))
-            ft['MSECOND'] = round(float(t[2].replace(',','.')) % 1 * 1e6)
+            ft['SECOND'] = round(float(t[2].replace(',', '.')))
+            ft['MSECOND'] = round(float(t[2].replace(',', '.')) % 1 * 1e6)
             ft['FIELD'] = dt
             output.addFeature(ft)
             s = file.readline()
 
-class variationsLoaderAlgorithm(QgsProcessingAlgorithm):
+
+class VariationsLoaderAlgorithm(QgsProcessingAlgorithm):
     """
     """
-    INPUT  = 'INPUT'
+    INPUT = 'INPUT'
     FORMAT = 'FORMAT'
     OUTPUT = 'OUTPUT'
     output_names = ['Вариации POS', 'Вариации MiniMag']
 
     def initAlgorithm(self, config):
         self.addParameter(QgsProcessingParameterFile(self.INPUT, self.tr('Исходные данные'),
-                                                              extension='txt'))
-        self.addParameter(QgsProcessingParameterEnum(self.FORMAT, self.tr('Формат данных'), options = self.output_names, defaultValue=0))
+                                                     extension='txt'))
+        self.addParameter(QgsProcessingParameterEnum(self.FORMAT, self.tr('Формат данных'), options=self.output_names,
+                                                     defaultValue=0))
         self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr('Результат'),
-                                                              type=QgsProcessing.TypeVector))
+                                                            type=QgsProcessing.TypeVector))
 
     def processAlgorithm(self, parameters, context, feedback):
         input = self.parameterAsFile(parameters, self.INPUT, context)
@@ -191,4 +199,4 @@ class variationsLoaderAlgorithm(QgsProcessingAlgorithm):
         return QCoreApplication.translate('Processing', string)
 
     def createInstance(self):
-        return variationsLoaderAlgorithm()
+        return VariationsLoaderAlgorithm()

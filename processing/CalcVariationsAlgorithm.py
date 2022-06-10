@@ -26,7 +26,7 @@ from qgis.core import (QgsProcessing,
 from ..common.SplinesArray import SplinesArray, ValueNotFoundException
 
 
-class calcVariationsAlgorithm(QgsProcessingAlgorithm):
+class CalcVariationsAlgorithm(QgsProcessingAlgorithm):
     """
         Входные данные - распарсенные файлы вариаций и магнитки
         Выходные данные - слой магнитки с учтенными вариациями
@@ -41,25 +41,25 @@ class calcVariationsAlgorithm(QgsProcessingAlgorithm):
                                                               [QgsProcessing.TypeFile]))
         self.addParameter(QgsProcessingParameterFeatureSource(self.INPUT_MAGN, self.tr('Данные магнитной съемки'),
                                                               [QgsProcessing.TypeVectorPoint]))
-        # self.addParameter(QgsProcessingParameterNumber(self.MAGN_CONST, self.tr('Магнитная константа'),
-        #                                                defaultValue=60000))
+        self.addParameter(QgsProcessingParameterNumber(self.MAGN_CONST, self.tr('Магнитная константа'),
+                                                       defaultValue=60000))
         self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr('Результат'),
                                                             type=QgsProcessing.TypeVectorPoint))
 
     def processAlgorithm(self, parameters, context, feedback):
         input_var = self.parameterAsSource(parameters, self.INPUT_VAR, context)
         input_magn = self.parameterAsSource(parameters, self.INPUT_MAGN, context)
-        # magn_const = self.parameterAsInt(parameters, self.MAGN_CONST, context)
+        magn_const = self.parameterAsInt(parameters, self.MAGN_CONST, context)
 
         if input_var is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT_VAR))
         if input_magn is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT_MAGN))
-        # if magn_const is None:
-        #     raise QgsProcessingException(self.invalidSourceError(parameters, self.MAGN_CONST))
+        if magn_const is None:
+            raise QgsProcessingException(self.invalidSourceError(parameters, self.MAGN_CONST))
 
         # ----- main algorithm ------
-        # feedback.setProgressText(f'')
+        feedback.setProgressText(f'Evaluating variations...')
 
         value_points = []
         variations_function = SplinesArray()
@@ -151,4 +151,4 @@ class calcVariationsAlgorithm(QgsProcessingAlgorithm):
         return QCoreApplication.translate('Processing', string)
 
     def createInstance(self):
-        return calcVariationsAlgorithm()
+        return CalcVariationsAlgorithm()

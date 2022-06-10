@@ -172,7 +172,7 @@ def readFormat3(file, output, s, fields, transform):
         s = file.readline()
 
 
-class dataLoaderAlgorithm(QgsProcessingAlgorithm):
+class DataLoaderAlgorithm(QgsProcessingAlgorithm):
     """
     """
     INPUT = 'INPUT'
@@ -295,4 +295,4 @@ class dataLoaderAlgorithm(QgsProcessingAlgorithm):
         return QCoreApplication.translate('Processing', string)
 
     def createInstance(self):
-        return dataLoaderAlgorithm()
+        return DataLoaderAlgorithm()

@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-
+# TODO: add zero points removing (from geometry)
 #
-# Алгоритм поворота точек до горизонтального положения профилей профилей
+# Алгоритм обрезки точек долета по азимуту
 #
-import math
-from collections import deque
 
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis._core import QgsProcessingParameterBoolean
 from qgis.core import (QgsProcessing,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingAlgorithm,
@@ -23,229 +22,111 @@ from qgis.core import (QgsProcessing,
                        QgsField,
                        QgsFields,
                        QgsWkbTypes)
-
-from ..utils.spatial import rotate, dist, BBox, angle180, azimuth180
-from ..utils.statistics import AzimuthHistogram
-from ..core.classify import Matrix, PointCache
-
-import numpy as np
+import geopandas as gpd
+from ..tools.azimuth_math import *
+from ..tools.write_read_methods import *
 
 
-class shavingDataAlgorithm(QgsProcessingAlgorithm):
+class ShavingDataAlgorithm(QgsProcessingAlgorithm):
     """
         Входные данные - данные магнитной съемки
         Выходные данные - слой с обрезанными долетами
     """
     INPUT = 'INPUT'
     OUTPUT = 'OUTPUT'
+    DEL = 'DEL'
+    RADIUS = 'RADIUS'
+    AZIMUTH = 'AZIMUTH'
+    CLASS = 'CLASS'
 
     def initAlgorithm(self, config):
         self.addParameter(QgsProcessingParameterFeatureSource(self.INPUT, self.tr('Входные данные'),
                                                               [QgsProcessing.TypeVectorPoint]))
+        self.addParameter(QgsProcessingParameterBoolean(self.DEL, self.tr('Удалить точки долетов'),
+                                                        defaultValue=True))
+        self.addParameter(QgsProcessingParameterNumber(self.RADIUS, self.tr('Радиус целевого азимута:'),
+                                                       defaultValue=20))
         self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr('Результат'),
                                                             type=QgsProcessing.TypeVectorPoint))
 
-    def getAsPoint(self, f):
-        """преобразует очередной считанный объект в точку. Из мультиточек берётся первая точка,
-        для неточечных объектов - центроид"""
-        ft = f.geometry().wkbType()
-        if (ft == QgsWkbTypes.MultiPoint) or (ft == QgsWkbTypes.MultiPointM) or (ft == QgsWkbTypes.MultiPointZ) or (
-                ft == QgsWkbTypes.MultiPointZM):
-            g = f.geometry()
-            g.convertToSingleType()
-            return g.asPoint()
-        else:
-            return f.geometry().asPoint()
-
-    latFieldIdx = -1
-    lonFieldIdx = -1
-    xFieldIdx = -1
-    yFieldIdx = -1
-
-    def detectFields(self, fields):
-        self.latFieldIdx = fields.indexOf('LAT')
-        self.lonFieldIdx = fields.indexOf('LON')
-        self.xFieldIdx = fields.indexOf('X')
-        self.yFieldIdx = fields.indexOf('Y')
-
-    def isFalsePoint(self, f) -> bool:
-        if self.latFieldIdx >= 0 and f[self.latFieldIdx] == 0:
-            return True
-        if self.xFieldIdx >= 0 and f[self.xFieldIdx] == 0:
-            return True
-        return False
-
     def processAlgorithm(self, parameters, context, feedback):
-        # def progress(stage, current, total):
-        #     stages = 7
-        #     feedback.setProgress(int(100/stages*(stage-1) + current/float(total)*100/stages))
-
+        radius = self.parameterAsInt(parameters, self.RADIUS, context)
+        will_del = self.parameterAsBool(parameters, self.DEL, context)
         input = self.parameterAsSource(parameters, self.INPUT, context)
         if input is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 
-        # total = input.featureCount()
-        # fields = input.fields()
-        # self.detectFields(fields)
-        #
-        # points = PointCache(total)  # кэш точек для ускорения вычислений
-        #
-        # az_threshold = 4  # эмпирика!
-        #
-        # # Этап 1 - загрузка данных в кэш
-        # feedback.setProgressText('Loading data points...')
-        # false_count = 0
-        # zero_count = 0
-        # prev = None
-        # azimuths = [0]
-        # for current, f in enumerate(input.getFeatures()):
-        #     if feedback.isCanceled():
-        #         break
-        #     if not f.hasGeometry():
-        #         continue
-        #     g = self.getAsPoint(f)
-        #     if prev:
-        #         azimuth = azimuth180(prev.x(), prev.y(), g.x(), g.y())
-        #         azimuths.append(azimuth)
-        #         points.append(g.x(), g.y())
-        #     # if not self.isFalsePoint(f):  # в вычислениях участвуют только точки с ненулевыми координатами
-        #     #     if prev:
-        #     #         if dist(prev.x(), prev.y(), g.x(), g.y()) > 0:
-        #     #             points.append(g.x(), g.y())
-        #     #         else:
-        #     #             zero_count += 1
-        #     # else:
-        #     #     false_count += 1
-        #     prev = g
-        #     progress(1, current, total)
-        # feedback.setProgressText(f'Points rejected by attributes: {false_count}')
-        # feedback.setProgressText(f'Points rejected by distance: {zero_count}')
-        # feedback.setProgressText(f'Points loaded: {points.count}')
-        #
-        # points.compact()
-        #
-        # # Этап 2 - вычисление статистики по исходным точкам
-        # feedback.setProgressText('Calculating statistics...')
-        # # переменные для расчёта статистики
-        # az_counter = AzimuthHistogram(2)  # гистограмма для вычисления наиболее частого азимута. Точность - 2 градуса
-        #
-        # for i in range(points.count):
-        #     if i > 0 and points.dist[i] > 0:
-        #         az_counter.add(points.az[i])
-        #     progress(2, i, points.count)
-        #
-        # feedback.setProgressText(f'Most frequent azimuth = {az_counter.getMostFrequent()}')
-        #
-        # # Этап 3 - уточнение азимута профилей.
-        # # Имеется преобладающий азимут с точностью +/-1 градус, нужно вычислить точнее
-        # # Находятся цепочки точек, азимуты между которыми не отклоняются от преобладающего больше, чем на некоторое значение (эмпирически взято 4 градуса)
-        # # Для каждой цепочки вычиляется азимут между первой и последней точкой
-        # # За финальный азимут берётся среднее значение азимутов 10% наиболее длинных цепочек - так производится ограничение влияния почти параллельных профилям долётов
-        #
-        # az0 = az_counter.getMostFrequent()  # преобладающий азимут
-        #
-        # feedback.setProgressText('Refining azimuth and distance...')
-        # prev = None
-        # az_value = az0
-        # first_point = -1 # первая точка цепочки
-        # second_point = -1 # последняя точка цепочки
-        # run_size = 0 # количество точек в текущей цепочке
-        # run_dist = 0 # расстояние между минимальной и максимальной точкой текущей цепочки
-        # sum_dst = 0
-        # used = 0
-        # chains = []
-        # chain_len = []
-        #
-        # for i in range(points.count):
-        #     if points.dist[i] > 0: # у первой точки расстояние всегда = 0 и её пропускаем
-        #         if math.fabs(points.az[i] - az0) < az_threshold:  # если азимут попадает в предел значений вокруг преобладающего азимута
-        #             if first_point >= 0:  # первая точка в цепочке уже есть - наращиваем цепочку
-        #                 second_point = i
-        #                 run_size += 1
-        #                 run_dist = dist(points.x[i], points.y[i], points.x[first_point], points.y[first_point])
-        #                 if used == 0 or (points.dist[i] < (sum_dst/used)*10):  # эмпирическая защита от перескоков между участками
-        #                     sum_dst += points.dist[i]
-        #                     used += 1
-        #             else: # первой точки ещё нет - начинаем цепочку
-        #                 first_point = i
-        #                 second_point = -1
-        #                 run_size = 0
-        #                 run_dist = 0
-        #         else: # отклонение азимута слишком большое - рвём цепочку, если она есть
-        #             if first_point >= 0 and second_point >= 0: # если были первая и последняя точки - вычисляем характеристики цепочки и запоминаем их
-        #                 if run_dist > 0:  # а может мы метались в стартовой точке и пришли в начало
-        #                     az_value = angle180(points.x[first_point], points.y[first_point], points.x[second_point], points.y[second_point])
-        #                     if run_size > 2: # совсем мелкие цепочки не берём
-        #                         chain_len.append(run_dist)
-        #                         chains.append({"l": run_dist, "a": az_value})
-        #                 run_size = 0
-        #                 run_dist = 0
-        #             first_point = -1
-        #             second_point = -1
-        #     progress(3, i, points.count)
-        #
-        # if feedback.isCanceled():
-        #     return {}
-        #
-        # az_value = np.mean([a_dict["a"] for a_dict in chains if a_dict["l"] > np.percentile(chain_len, 90)]) # выборка азимута как среднего значения по 10% самых длинных цепочек (TODO: использовать медиану?)
-        # az_value_m = np.median([a_dict["a"] for a_dict in chains if a_dict["l"] > np.percentile(chain_len, 90)]) # выборка азимута как среднего значения по 10% самых длинных цепочек (TODO: использовать медиану?)
-        #
-        # feedback.setProgressText(f'Refined azimuth = {az_value}')
-        # feedback.setProgressText(f'Refined azimuth (median) = {az_value_m}')
-        #
-        # if feedback.isCanceled():
-        #     return {}
-        #
-        # # Этап 5 - определение точек, принадлежащих профилям
-        # feedback.setProgressText('Detecting profiles...')
+        feedback.setProgressText(f'Loading {input.featureCount()} points...')
+        if feedback.isCanceled():
+            return {}
 
-        # save result
+        # добавляет лишние кавычки, пока не знаю почему
+        uri = self.parameterDefinition(self.INPUT).valueAsPythonString(parameters[self.INPUT], context).strip("'")
+
+        # переводим исходный файл в geopandas
+        file = read_file_to_gdf_from_uri(uri)
+        if file[0] == 1: feedback.setProgressText(file[1])
+        else: feedback.reportError(file[1])
+
+        gdf = file[2]
+        gdf = calc_all_azimuths(gdf, self.AZIMUTH)  # подсчитываем значения всех азимутов
+        targets = get_targets(gdf)  # найдем профильные азимуты
+        bounds = specify_bounds(radius, targets)  # вычислим интервал допустимых азимутов
+        gdf = self.classify(gdf, bounds)  # классификация 1 - полезная точка, 0 - нет
+
+        # gdf = gdf[gdf.geometry.z != 0]  # исключим все точки с нулевыми координатами
+        gdf = gdf[gdf.LON != 0]
+
+        if will_del:
+            gdf = self.delete_points(gdf)
+
+        #  save result
         res_fields = input.fields()
-        res_fields.append(QgsField('AZ', QVariant.Double))
+        res_fields.append(QgsField(self.AZIMUTH, QVariant.Double))
+        res_fields.append(QgsField(self.CLASS, QVariant.Int))
 
         (output, output_id) = self.parameterAsSink(parameters, self.OUTPUT, context, res_fields,
                                                    input.wkbType(),
                                                    input.sourceCrs())
-        if output is None:
-            raise QgsProcessingException(self.invalidSinkError(parameters, self.OUTPUT))
-
-        # classify points
-        # target = az_value_m
-
-        # if len(azimuths) == total:
-        for i, f in enumerate(input.getFeatures()):
-            # if target - 5 < azimuths[i] < target + 5:
-            nf = QgsFeature()
-            nf.setFields(res_fields)
-            nf.setGeometry(f.geometry())
-            nf.setAttributes(f.attributes())
-            nf['AZ'] = 1
-            output.addFeature(nf, QgsFeatureSink.FastInsert)
-        # else:
-        #     feedback.reportError('\nError while evaluating azimuths', fatalError=True)
-
-        # if feedback.isCanceled():
-        #     return {}
+        save_gdf_to_output(gdf, res_fields, output)
 
         if context.willLoadLayerOnCompletion(output_id):
             l = context.layerToLoadOnCompletionDetails(output_id)
             if l:
-                l.name = 'Обрезанные данные'
+                l.name = input.sourceName() + '_cut'
         return {self.OUTPUT: output_id}
+        # return {}
+
+    def classify(self, gdf, bounds):
+        gdf[self.CLASS] = 0
+        i = 0
+        while i < len(gdf):
+            a = gdf.loc[i, self.AZIMUTH]
+            for b in bounds:
+                if b[0] <= a <= b[1]:
+                    gdf.at[i, self.CLASS] = 1
+            i += 1
+
+        # print(f'\n{gdf.query("CLASS == 1")}')
+        return gdf
+
+    def delete_points(self, gdf):
+        gdf = gdf.query(f"{self.CLASS} == 1")
+        return gdf
 
     def name(self):
         return 'shaving_data'
 
     def displayName(self):
-        txt_ru = 'Обрезка долетов магнитосъемки'
+        txt_ru = 'Обрезка долетов'
         return self.tr(txt_ru)
 
     def shortHelpString(self):
-        txt_ru = '''Обрезка долетов магнитосъемки'''
+        txt_ru = '''Обрезка долетов'''
         return self.tr(txt_ru)
 
     def shortDescription(self):
-        txt_ru = 'Rotate points'
+        txt_ru = 'Shaving points'
         return self.tr(txt_ru)
 
     def group(self):
@@ -258,4 +139,4 @@ class shavingDataAlgorithm(QgsProcessingAlgorithm):
         return QCoreApplication.translate('Processing', string)
 
     def createInstance(self):
-        return shavingDataAlgorithm()
+        return ShavingDataAlgorithm()
