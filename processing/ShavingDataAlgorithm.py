@@ -62,7 +62,6 @@ class ShavingDataAlgorithm(QgsProcessingAlgorithm):
 
         # добавляет лишние кавычки, пока не знаю почему
         uri = self.parameterDefinition(self.INPUT).valueAsPythonString(parameters[self.INPUT], context).strip("'")
-
         # переводим исходный файл в geopandas
         file = read_file_to_gdf_from_uri(uri)
         if file[0] == 1: feedback.setProgressText(file[1])
@@ -74,8 +73,7 @@ class ShavingDataAlgorithm(QgsProcessingAlgorithm):
         bounds = specify_bounds(radius, targets)  # вычислим интервал допустимых азимутов
         gdf = self.classify(gdf, bounds)  # классификация 1 - полезная точка, 0 - нет
 
-        # gdf = gdf[gdf.geometry.z != 0]  # исключим все точки с нулевыми координатами
-        gdf = gdf[gdf.LON != 0]
+        # gdf = gdf[gdf.LON != 0 & gdf.LAT != 0]
 
         if will_del:
             gdf = self.delete_points(gdf)
