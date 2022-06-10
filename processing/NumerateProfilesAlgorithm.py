@@ -20,7 +20,11 @@ from qgis.core import (QgsProcessing,
                        QgsWkbTypes)
 import geopandas as gpd
 from ..tools.azimuth_math import numerate_profiles
+<<<<<<< HEAD
 from ..tools.write_read_methods import *
+=======
+from ..tools.write_read_methods import save_gdf_to_output
+>>>>>>> 3c6e438b4560569dda14705ee75d54ebe3e35c73
 
 
 class NumerateProfileAlgorithm(QgsProcessingAlgorithm):
@@ -49,6 +53,7 @@ class NumerateProfileAlgorithm(QgsProcessingAlgorithm):
             return {}
 
         # добавляет лишние кавычки, пока не знаю почему
+<<<<<<< HEAD
         uri = self.parameterDefinition(self.INPUT).valueAsPythonString(parameters[self.INPUT], context).strip("'")
         file = read_file_to_gdf_from_uri(uri)
         if file[0] == 1:
@@ -57,6 +62,10 @@ class NumerateProfileAlgorithm(QgsProcessingAlgorithm):
             feedback.reportError(file[1])
 
         gdf = file[2]
+=======
+        inf = self.parameterDefinition(self.INPUT).valueAsPythonString(parameters[self.INPUT], context).strip("'")
+        gdf = gpd.read_file(inf, encoding='latin1')  # переводим исходный файл в geopandas
+>>>>>>> 3c6e438b4560569dda14705ee75d54ebe3e35c73
 
         gdf = numerate_profiles(gdf, self.AZIMUTH, self.FLIGHT_NUM)
 
