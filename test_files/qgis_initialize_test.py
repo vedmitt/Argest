@@ -1,4 +1,4 @@
-from tools.dataStorage.FeaturesList import FeaturesList
+from old_files.dataStorage.FeaturesList import FeaturesList
 
 
 f = FeaturesList([], None, [], None)
@@ -17,9 +17,9 @@ f = FeaturesList([], None, [], None)
 # # Write your code here to load some layers, use processing
 # # algorithms, etc.
 # data_fn = '/Users/ronya/My_Documents/karelia/karelia_results/the_one_control_lines_2.shp'
-# layer = QgsVectorLayer(data_fn, '', 'ogr')
-# print(layer.isValid())
+# input_lyr = QgsVectorLayer(data_fn, '', 'ogr')
+# print(input_lyr.isValid())
 #
 # # When your script is complete, call exitQgis() to remove the provider and
-# # layer registries from memory
+# # input_lyr registries from memory
 # qgs.exitQgis()
