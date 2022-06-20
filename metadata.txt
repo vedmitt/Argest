@@ -3,10 +3,10 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=SSG UAV support plugin
-qgisMinimumVersion=3.20
+name=Argest
+qgisMinimumVersion=3.1
 description=Support tools for SSG UAV geophisical complex
-version=0.1
+version=5.1
 author=Ronya14
 email=ronya14@mail.ru
 
